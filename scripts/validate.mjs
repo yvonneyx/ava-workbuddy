@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { access, readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { join, resolve } from 'node:path';
 import { parse } from 'yaml';
-import { root, metadata } from '../src/runtime.mjs';
+import { root, metadata } from '../lib/metadata.js';
 
 export async function validate() {
   const json = async (path) => JSON.parse(await readFile(join(root, path), 'utf8'));
@@ -19,7 +20,7 @@ export async function validate() {
   assert.deepEqual(Object.keys(mcp.mcpServers), [connector.source]);
   const config = mcp.mcpServers[connector.source];
   assert.equal(config.type, 'stdio'); assert.equal(config.command, 'npx');
-  assert(config.args.includes(`--package=https://github.com/yvonneyx/ava-workbuddy/archive/refs/tags/v${metadata.version}.tar.gz`));
+  assert(config.args.includes(`--package=https://github.com/yvonneyx/ava-workbuddy/releases/download/v${metadata.version}/ava-workbuddy-${metadata.version}.tgz`));
   assert.deepEqual(config.runtime, { type: 'node', version: '>=22.13.0 <23' });
   assert.equal(plugin.version, metadata.version);
   assert.equal(plugin.name, plugin.plugin);
@@ -49,7 +50,7 @@ export async function validate() {
   return { valid: true, version: metadata.version, connector: connector.source, expert: plugin.name };
 }
 
-if (process.argv[1] === new URL(import.meta.url).pathname) {
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
   try { console.log(JSON.stringify(await validate(), null, 2)); }
   catch (error) { console.error(error.message); process.exitCode = 1; }
 }

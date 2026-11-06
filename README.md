@@ -8,7 +8,7 @@
 
 [开始试用](#开始试用) · [发布专家](#发布专家) · [开发与验证](#开发与验证) · [常见问题](#常见问题)
 
-> **当前版本：v0.1.3 预览版**
+> **当前版本：v0.2.0 预览版**
 >
 > 支持 **macOS / Linux、WorkBuddy 5.0.0+**，暂不支持 Windows。沿用 WorkBuddy 的模型，无需另配模型 API Key。
 
@@ -41,7 +41,7 @@
       "command": "npx",
       "args": [
         "--yes",
-        "--package=https://github.com/yvonneyx/ava-workbuddy/archive/refs/tags/v0.1.3.tar.gz",
+        "--package=https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.2.0/ava-workbuddy-0.2.0.tgz",
         "ava-workbuddy",
         "serve"
       ],
@@ -56,7 +56,7 @@
 
 </details>
 
-首次连接会从 GitHub 和 npm 下载固定版本的集成及依赖，请等待安装结束。支持托管运行时的 WorkBuddy 会按配置准备 Node.js；手动运行时需要 Node.js 22.13+。连接成功后可发现 `ava_check`、`ava_demo` 等 8 个工具。
+首次连接会从 GitHub Release 和 npm 下载固定版本的预编译包及依赖，无需在用户电脑上编译 TypeScript，请等待安装结束。支持托管运行时的 WorkBuddy 会按配置准备 Node.js；手动运行时需要 Node.js 22.13+。连接成功后可发现 `ava_check`、`ava_demo` 等 8 个工具。
 
 ### 2. 用示例验证一次
 
@@ -80,7 +80,7 @@
 
 ### 3. 换成自己的表格
 
-建议先下载并导入 [AVA Skill ZIP](https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.1.3/ava-workbuddy-skill-0.1.3.zip)：在「技能 → 添加技能 → 上传技能」中完成安装。Skill 提供分析指导，需配合第 1 步连接的 MCP 使用。
+建议先下载并导入 [AVA Skill ZIP](https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.2.0/ava-workbuddy-skill-0.2.0.zip)：在「技能 → 添加技能 → 上传技能」中完成安装。Skill 提供分析指导，需配合第 1 步连接的 MCP 使用。
 
 然后上传本地 CSV 或 XLSX，描述你的问题，例如：
 
@@ -97,7 +97,7 @@
 
 如果希望其他用户通过「AVA 4.0 数据分析师」入口使用，可以上传专家包到 WorkBuddy 开放平台。
 
-1. 下载 [专家 ZIP](https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.1.3/ava-workbuddy-expert-0.1.3.zip)。
+1. 下载 [专家 ZIP](https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.2.0/ava-workbuddy-expert-0.2.0.zip)。
 2. 打开 [创建专家页面](https://open.workbuddy.cn/expert/publish?action=create&step=1)，上传 ZIP，补齐平台要求的信息。
 3. 在平台可用的试用环节连接内置 MCP，验证示例及自己的文件，再按流程提交审核和发布。
 
@@ -107,11 +107,11 @@
 
 | 下载 | 用途 |
 | --- | --- |
-| [专家包](https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.1.3/ava-workbuddy-expert-0.1.3.zip) | 提供完整的「AVA 4.0 数据分析师」入口，内置 Skill 和 MCP 配置 |
-| [连接器包](https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.1.3/ava-workbuddy-connector-0.1.3.zip) | 提交连接器市场审核，供用户单独安装 AVA 工具 |
-| [Skill 包](https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.1.3/ava-workbuddy-skill-0.1.3.zip) | 手动导入分析指导，与已连接的 MCP 配合使用 |
+| [专家包](https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.2.0/ava-workbuddy-expert-0.2.0.zip) | 提供完整的「AVA 4.0 数据分析师」入口，内置 Skill 和 MCP 配置 |
+| [连接器包](https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.2.0/ava-workbuddy-connector-0.2.0.zip) | 提交连接器市场审核，供用户单独安装 AVA 工具 |
+| [Skill 包](https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.2.0/ava-workbuddy-skill-0.2.0.zip) | 手动导入分析指导，与已连接的 MCP 配合使用 |
 
-文件校验值见 [SHA256SUMS](https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.1.3/SHA256SUMS)，完整操作步骤见 [发布指南](docs/publishing.md)。同一对话使用一个 AVA MCP 连接即可，避免重复启用专家内置连接与手动添加的同名连接。
+文件校验值见 [SHA256SUMS](https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.2.0/SHA256SUMS)，完整操作步骤见 [发布指南](docs/publishing.md)。同一对话使用一个 AVA MCP 连接即可，避免重复启用专家内置连接与手动添加的同名连接。
 
 ## 它如何工作
 
@@ -141,23 +141,26 @@
 
 ## 开发与验证
 
-开发环境需要 **Node.js 22.13+**；生成 ZIP 还需要 `zip` 和 `unzip`。项目使用原生 JavaScript ESM，无需编译，依赖通过 `npm-shrinkwrap.json` 锁定。
+开发环境需要 **Node.js 22.13+**；生成 ZIP 还需要 `zip` 和 `unzip`。核心代码使用 TypeScript（严格模式），编译为 ESM 并生成类型声明；依赖通过 `npm-shrinkwrap.json` 锁定。
 
 ```sh
 git clone https://github.com/yvonneyx/ava-workbuddy.git
 cd ava-workbuddy
 npm ci
+npm run build
 ```
 
 按需运行检查：
 
 | 命令 | 检查内容 |
 | --- | --- |
+| `npm run typecheck` | 严格检查 TypeScript 类型，不生成文件 |
+| `npm run build` | 生成 `lib/` 中的 JavaScript、类型声明及源码映射 |
 | `npm test` | 运行环境、输入边界、会话归属、超时处理与包配置 |
 | `npm run test:integration` | 真实 MCP 调用、CSV / XLSX、只读查询、制图及会话重启 |
 | `npm run smoke` | 示例从加载、计算到生成 HTML 的完整流程 |
-| `npm run test:package` | 在新目录安装真实打包产物并运行示例 |
-| `npm run package` | 在 `dist/` 生成三个 ZIP 和 `SHA256SUMS` |
+| `npm run test:package` | 在新目录安装预编译包，验证公开 API、类型声明和首次分析 |
+| `npm run package` | 在 `dist/` 生成预编译 TGZ、三个 ZIP 和 `SHA256SUMS` |
 
 CI 覆盖 macOS / Linux、Node.js 22 / 24。协议、计算和打包已有自动化验证；WorkBuddy 客户端导入、登录后的发布表单和图表视觉预览仍需人工验证。
 
@@ -168,25 +171,49 @@ CI 覆盖 macOS / Linux、Node.js 22 / 24。协议、计算和打包已有自动
 connector/       # 连接器元信息、MCP 配置、图标
 expert/          # 专家配置、Agent 指令、头像
 skills/ava/      # Skill 及参考文档，唯一维护源
-src/             # 本地 MCP 服务，内部调用 AVA CLI
+src/             # TypeScript 库、会话运行时、MCP 和 CLI
+lib/             # 编译结果与类型声明（生成，不提交）
 examples/        # 模拟销售数据和可复现 SQL
 scripts/         # 配置校验、打包与安装验证
 test/            # 单元测试、集成测试和 XLSX 样例
-docs/            # 发布指南
+docs/            # 库 API、维护与发布指南
 ```
 
 打包时将同一份 Skill 复制到连接器和专家包，并将 `connector/mcp.json` 复制为专家包根目录的 `.mcp.json`。专家包保留 `.codebuddy-plugin` 等必需隐藏文件。
 
 ```sh
-node src/cli.mjs check
-node src/cli.mjs smoke
-node src/cli.mjs demo /absolute/path/to/a-new-demo-directory
-node src/cli.mjs serve
+node lib/cli.js check
+node lib/cli.js smoke
+node lib/cli.js demo /absolute/path/to/a-new-demo-directory
+node lib/cli.js serve
 ```
 
-本地调试 MCP 时，将 `command` 改为受支持 Node.js 的绝对路径，`args` 改为本仓库 `src/cli.mjs` 的绝对路径和 `serve`。共享配置使用版本下载地址，避免提交开发机路径。
+本地调试 MCP 时，将 `command` 改为受支持 Node.js 的绝对路径，`args` 改为本仓库 `lib/cli.js` 的绝对路径和 `serve`。共享配置使用版本下载地址，避免提交开发机路径。
 
 </details>
+
+## 在代码中使用
+
+除 WorkBuddy 接入外，也可以作为 ESM 库使用。安装 [预编译包](https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.2.0/ava-workbuddy-0.2.0.tgz) 后：
+
+```ts
+import { Runtime } from 'ava-workbuddy';
+
+const runtime = new Runtime();
+try {
+  const { datasetId } = await runtime.source('/absolute/path/to/sales.csv');
+  const schema = await runtime.schema(datasetId);
+  // 根据 schema 中的真实表名和字段编写 SQL。
+  console.log(schema);
+  const result = await runtime.query(datasetId, 'SELECT COUNT(*) AS rows FROM data');
+  console.log(result.data, result.truncated);
+} finally {
+  const cleanup = await runtime.close();
+  if (cleanup.retained.length) console.error('尚未释放的会话：', cleanup);
+}
+```
+
+公开 API 与错误处理见 [库使用指南](docs/api.md)，开发约定见 [贡献指南](CONTRIBUTING.md)，版本变化见 [CHANGELOG](CHANGELOG.md)。MCP 嵌入接口单独从 `ava-workbuddy/mcp` 导入；导入库不会启动 stdio 服务或注册信号处理器。
 
 ## 常见问题
 

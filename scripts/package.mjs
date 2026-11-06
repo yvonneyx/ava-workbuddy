@@ -1,9 +1,9 @@
 import { execFileSync } from 'node:child_process';
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, join, basename } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
-import { root, metadata } from '../src/runtime.mjs';
+import { root, metadata } from '../lib/metadata.js';
 import { validate } from './validate.mjs';
 
 await validate();
@@ -12,6 +12,12 @@ await mkdir(dist, { recursive: true });
 const staging = await mkdtemp(join(tmpdir(), 'ava-workbuddy-pack-'));
 const archives = [];
 try {
+  const env = { ...process.env, PATH: `${dirname(process.execPath)}:${process.env.PATH}` };
+  const [packed] = JSON.parse(execFileSync('npm', ['pack', '--ignore-scripts', '--json', '--pack-destination', dist], {
+    cwd: root, env, encoding: 'utf8',
+  }));
+  const tarball = join(dist, packed.filename);
+  archives.push({ file: tarball, sha256: createHash('sha256').update(await readFile(tarball)).digest('hex') });
   for (const [kind, directory] of [['connector', 'ava-connector'], ['expert', 'ava-workbuddy-analyst'], ['skill', 'ava']]) {
     const destination = join(staging, directory);
     await mkdir(destination);
@@ -35,6 +41,6 @@ try {
     const digest = createHash('sha256').update(await readFile(archive)).digest('hex');
     archives.push({ file: archive, sha256: digest });
   }
-  await writeFile(join(dist, 'SHA256SUMS'), archives.map(({ file, sha256 }) => `${sha256}  ${file.split('/').at(-1)}`).join('\n') + '\n');
+  await writeFile(join(dist, 'SHA256SUMS'), archives.map(({ file, sha256 }) => `${sha256}  ${basename(file)}`).join('\n') + '\n');
   console.log(JSON.stringify({ archives }, null, 2));
 } finally { await rm(staging, { recursive: true, force: true }); }

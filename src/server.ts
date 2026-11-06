@@ -1,19 +1,35 @@
-import { McpServer } from '@modelcontextprotocol/server';
+import { McpServer, type ToolAnnotations } from '@modelcontextprotocol/server';
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio';
 import { z } from 'zod/v4';
-import { Runtime, checkEnvironment, metadata, runDemo } from './runtime.mjs';
+import { Runtime } from './runtime.js';
+import { checkEnvironment } from './environment.js';
+import { metadata } from './metadata.js';
+import { runDemo } from './demo.js';
 
 export function createServer(runtime = new Runtime()) {
   const server = new McpServer({ name: 'ava-workbuddy', version: metadata.version });
   const id = z.string().regex(/^ds_[a-z0-9_-]+$/).describe('ID returned by ava_source in this MCP connection');
-  const register = (name, description, inputSchema, handler, annotations) => server.registerTool(name, {
+  const pending = new Set<Promise<object>>();
+  let cleanup: Promise<Awaited<ReturnType<Runtime['close']>>> | undefined;
+  const register = <S extends Record<string, z.ZodType>>(
+    name: string,
+    description: string,
+    inputSchema: z.ZodObject<S>,
+    handler: (input: z.output<z.ZodObject<S>>) => object | Promise<object>,
+    annotations?: ToolAnnotations,
+  ) => server.registerTool<never, z.ZodObject<S>>(name, {
     description, inputSchema, annotations: { openWorldHint: false, destructiveHint: false, ...annotations },
   }, async (input) => {
     try {
-      const result = await handler(input);
+      if (cleanup) throw new Error('The integration is shutting down.');
+      const operation = Promise.resolve().then(() => handler(input));
+      pending.add(operation);
+      let result: object;
+      try { result = await operation; }
+      finally { pending.delete(operation); }
       return { content: [{ type: 'text', text: JSON.stringify(result) }], structuredContent: result };
     } catch (error) {
-      return { isError: true, content: [{ type: 'text', text: error.message }] };
+      return { isError: true, content: [{ type: 'text', text: error instanceof Error ? error.message : String(error) }] };
     }
   });
   register('ava_check', 'Check local runtime and pinned AVA version. Read-only; does not prove socket access or chart preview.', z.object({}), () => checkEnvironment(), { readOnlyHint: true });
@@ -32,21 +48,39 @@ export function createServer(runtime = new Runtime()) {
     spec: z.object({ chartType: z.string(), config: z.record(z.string(), z.unknown()) }).strict(), output: z.string(),
   }), ({ spec, output }) => runtime.viz(spec, output));
   register('ava_dispose', 'Release an idle dataset owned by this connection. Do not use to cancel a running or timed-out query. Saved HTML and result files remain available.', z.object({ datasetId: id }), ({ datasetId }) => runtime.dispose(datasetId));
-  return { server, runtime };
+  const close = () => {
+    cleanup ??= Promise.resolve().then(async () => {
+      await server.close();
+      await Promise.allSettled([...pending]);
+      return runtime.close();
+    });
+    return cleanup;
+  };
+  server.server.onclose = () => { void close().catch(() => {}); };
+  return { server, runtime, close };
 }
 
-export async function serve() {
+export async function serve(): Promise<void> {
   checkEnvironment();
-  const { server, runtime } = createServer();
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  const onclose = transport.onclose;
-  transport.onclose = () => { onclose?.(); void runtime.close(); };
-  let stopping = false;
-  for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, async () => {
-    if (stopping) return;
-    stopping = true;
-    await server.close();
-    await runtime.close();
-  });
+  const connection = createServer();
+  let stop: () => void = () => {};
+  try {
+    await new Promise<void>((resolve, reject) => {
+      let stopping = false;
+      stop = () => {
+        if (stopping) return;
+        stopping = true;
+        void connection.close().then((report) => {
+          for (const failure of report.errors) process.stderr.write(`Session cleanup: ${failure.datasetId}: ${failure.message}\n`);
+          resolve();
+        }, reject);
+      };
+      connection.server.server.onclose = stop;
+      for (const signal of ['SIGINT', 'SIGTERM'] as const) process.once(signal, stop);
+      void connection.server.connect(new StdioServerTransport()).catch(reject);
+    });
+  } finally {
+    for (const signal of ['SIGINT', 'SIGTERM'] as const) process.removeListener(signal, stop);
+    await connection.close();
+  }
 }

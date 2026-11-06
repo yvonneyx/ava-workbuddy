@@ -1,6 +1,6 @@
 {
   "name": "ava-workbuddy-analyst",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "Analyze local business data with AVA and deliver verified results and charts.",
   "author": { "name": "yvonneyx", "email": "zhuyuxin0627@gmail.com" },
   "agents": ["./agents/ava-workbuddy-analyst.md"],
