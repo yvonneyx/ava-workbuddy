@@ -1,6 +1,6 @@
 {
   "name": "ava-workbuddy-assistant",
-  "version": "0.2.1",
+  "version": "1.0.0",
   "description": "Explore files, databases, inline data and Feishu/Lark Bitable with AVA. Answer questions with verified results, visualizations and traceable reports.",
   "author": {
     "name": "yvonneyx",

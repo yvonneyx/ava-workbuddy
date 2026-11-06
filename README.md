@@ -12,20 +12,18 @@ WorkBuddy 理解问题并编写 SQL，AVA 执行计算和制图。结构化数�
 
 ## 开始使用
 
-### 已发布版本
+### 1.0.0（待发布）
 
-按使用方式选择一种安装入口：
+1.0.0 已完成本地构建与验证，尚未创建 GitHub Release。`dist/` 中的正式包：
 
-| 使用方式                  | 安装入口                                                                                                           |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| 直接使用 AVA 专家（推荐） | [专家 ZIP](https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.2.1/ava-workbuddy-expert-0.2.1.zip)      |
-| 给现有助手添加 AVA        | [连接器 ZIP](https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.2.1/ava-workbuddy-connector-0.2.1.zip) |
-| 手动配置                  | [`mcp.json`](connector/mcp.json)                                                                                   |
+| 使用方式   | 本地文件                            |
+| ---------- | ----------------------------------- |
+| AVA 专家   | `ava-workbuddy-expert-1.0.0.zip`    |
+| 连接器     | `ava-workbuddy-connector-1.0.0.zip` |
+| MCP 运行包 | `ava-workbuddy-1.0.0.tgz`           |
 
-在 WorkBuddy 对应入口导入，同一对话只启用一个 AVA MCP 连接。手动配置时，只将
-`mcpServers.yvonneyx-ava` 合并到已有 MCP 配置。
-
-以上入口均安装 **v0.2.1**；首次运行需访问 GitHub 和 npm。安装后发送：
+ZIP 内 MCP 配置已预设 v1.0.0 的公开 TGZ 地址；发布前该地址不可用，尚不能用于正式投递安装。本地调试按
+下方说明使用本仓库构建。发布后，同一对话只启用一个 AVA MCP 连接。示例问题：
 
 ```text
 分析我上传的 CSV / Excel，核对指标变化，给出结论、结果表和图表链接。
@@ -34,11 +32,10 @@ WorkBuddy 理解问题并编写 SQL，AVA 执行计算和制图。结构化数�
 上传 CSV / XLSX 并描述问题；也可下载 [模拟数据](tests/fixtures/sales.csv) 后上传体验。包校验和与发布
 流程见[发布指南](docs/publishing.md)。
 
-### 当前源码
+### 本地开发
 
-当前源码提供 **8 个工具**，支持 AVA 4.0.0 的全部 14 种数据源类型，并新增 `ava_artifact` 和查询证据编
-号。已发布 v0.2.1 仅支持本地 CSV/XLSX，尚无报告功能。当前源码的分析指导已并入 MCP，不再需要独立
-Skill。使用本地构建体验：
+1.0.0 提供 **8 个工具**，支持 AVA 4.0.0 的全部 14 种数据源类型。报告与查询证据通过 MCP 提供，不依赖
+独立 Skill。需要修改源码或本地调试时：
 
 ```sh
 npm ci
@@ -64,7 +61,7 @@ MCP 的工具描述和输入 schema 提供分析规则、参数与原生图表�
 - 会话闲置 30 分钟或连接重启后需重新加载数据源；超时可能仍在计算，不要自动重试或释放。
 - 报告内嵌查询结果，分享 HTML 也会分享这些数据。正文、表格和 SQL 可离线查看。
 
-## 数据源（当前源码）
+## 数据源
 
 `ava_source` 保留 `path` 参数，新增 `config` 和文件格式覆盖 `type`。`path` 与 `config` 二选一；具体
 配置示例见 [API](docs/api.md#数据源配置)。
@@ -118,14 +115,15 @@ lib/、dist/   生成文件，不提交
 
 ## 常见问题
 
-| 情况                | 处理                                     |
-| ------------------- | ---------------------------------------- |
-| 找不到 MCP 导入入口 | 检查 WorkBuddy 版本和企业策略            |
-| 首次连接失败        | 检查 GitHub / npm 下载和实际错误信息     |
-| `listen EPERM`      | 检查后台进程、Unix socket 和临时目录权限 |
-| Excel 加载失败      | 检查 `excel` 扩展下载，或导出为 CSV      |
-| HTML 图表空白       | 检查预览环境能否访问 unpkg.com           |
-| 输出已存在          | 使用新文件名或新目录                     |
+| 情况                | 处理                                                          |
+| ------------------- | ------------------------------------------------------------- |
+| 找不到 MCP 导入入口 | 检查 WorkBuddy 版本和企业策略                                 |
+| 首次连接失败        | 检查 GitHub / npm 下载和实际错误信息                          |
+| `listen EPERM`      | 检查后台进程、Unix socket 和临时目录权限                      |
+| Excel 加载失败      | 检查 `excel` 扩展下载，或导出为 CSV                           |
+| HTML 图表空白       | 检查预览环境能否访问 unpkg.com                                |
+| 输出已存在          | 使用新文件名或新目录                                          |
+| 报告未使用固定模板  | 确认调用 `ava_artifact`；停用旧同名 Skill 或旧 MCP 后新建会话 |
 
 Windows 尚未支持。数据库与飞书连接需要对应网络、权限和凭据，部分数据源需下载 DuckDB 扩展。图表沿用
 AVA 的 GPT-Vis CDN 地址，渲染器 URL 未锁定版本。

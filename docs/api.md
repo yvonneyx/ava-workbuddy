@@ -5,16 +5,20 @@
 
 ## 安装
 
-本文描述当前源码 API；已发布 v0.2.1 不含 `artifact()` 和查询证据编号。已发布版本的安装入口见
-[README](../README.md#已发布版本)。使用本文接口，先从源码打包：
+本文对应待发布的 1.0.0。先从源码生成本地运行包：
 
 ```sh
 npm ci
 npm run package
 ```
 
-在调用方项目执行 `npm install /absolute/path/to/ava-workbuddy-<version>.tgz`，安装 `dist/` 中生成的
-预编译包。调用方无需 TypeScript 编译器。
+在调用方项目安装 `dist/ava-workbuddy-1.0.0.tgz`：
+
+```sh
+npm install /absolute/path/to/ava-workbuddy-1.0.0.tgz
+```
+
+调用方无需 TypeScript 编译器。GitHub Release 尚未发布，预设的远程安装地址暂不可用。
 
 ## 公开入口
 
@@ -23,8 +27,7 @@ npm run package
 | `ava-workbuddy`     | `Runtime`、`AVACommandError`、`checkEnvironment` 及公开类型 |
 | `ava-workbuddy/mcp` | `createServer`、`serve`                                     |
 
-仅这两个入口属于公开 API；不要依赖 `lib/` 内部文件。0.x 阶段的 API 变化记录在 CHANGELOG，调整接口时
-升级次版本。
+公开 API 仅限这两个入口。兼容性变化记录在 CHANGELOG；破坏性调整升级主版本。
 
 ## Runtime
 

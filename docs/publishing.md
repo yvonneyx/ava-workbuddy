@@ -1,5 +1,8 @@
 # 打包与发布
 
+1.0.0 已完成本地打包与验证，尚未发布 GitHub Release，也未提交 WorkBuddy。正式投递前需先公开运行
+TGZ，确保包内 MCP 安装地址可用。
+
 ## 分发包
 
 `npm run package` 会清空并重建 `dist/`，生成当前版本的三个包和 `SHA256SUMS`：
@@ -30,8 +33,8 @@
 
 ## 维护者发版
 
-1. 同步包、锁文件、连接器和专家的版本，更新 MCP 安装 URL、文档链接与 CHANGELOG。当前源码的报告功能尚
-   未发布，须发新版本，不覆盖已发布 v0.2.1 文件。
+1. 同步包、锁文件、连接器和专家的版本，更新 MCP 安装 URL、文档链接与 CHANGELOG。已发布文件不覆盖，版
+   本变化使用新的 Release。
 2. 通过上述发布验证。
 3. 推送源码与 tag，在对应 GitHub Release 上传三个同版本包和 `SHA256SUMS`。预览版标记 prerelease；已
    发布文件不覆盖。
@@ -39,7 +42,21 @@
 5. 需要更新 WorkBuddy 专家或连接器时，另行上传新包并完成客户端验证和平台审核。
 
 MCP 安装指向远程 TGZ。本地打包不会让现有连接自动切换到当前源码；调试请按
-[README](../README.md#当前源码) 使用本地 `lib/cli.js`。
+[README](../README.md#本地开发) 使用本地 `lib/cli.js`。
+
+## WorkBuddy 投递
+
+专家投递上传 `ava-workbuddy-expert-1.0.0.zip`；连接器投递上传
+`ava-workbuddy-connector-1.0.0.zip`。TGZ 需要发布到公开的 GitHub Release，供包内 MCP 配置通过 `npx`
+安装。校验文件为同一 Release 中的 `SHA256SUMS`。
+
+专家字段由 ZIP 内 `.codebuddy-plugin/plugin.json` 提供，Agent 声明、头像和 `.mcp.json` 已组包。平台
+需填写的名称、介绍、分类、标签和快捷提问以该文件为准。专家无需独立 Skill。连接器字段由 ZIP 内
+`connector-meta.json` 提供，图标与 `mcp.json` 已组包；本地 stdio 无独立服务登录。
+
+投递入口与字段以 [WorkBuddy 专家规范](https://open.workbuddy.cn/docs/expert) 和
+[连接器规范](https://open.workbuddy.cn/docs/connector) 为准。提交后由平台审核，GitHub 发版不会自动上
+架。
 
 ## WorkBuddy 验收
 

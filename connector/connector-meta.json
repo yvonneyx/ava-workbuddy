@@ -7,7 +7,7 @@
   "description_en": "Analyze files, databases, inline data and Feishu Bitable, verify metric changes, and produce results and interactive charts.",
   "source": "yvonneyx-ava",
   "type": "mcp",
-  "version": "0.2.1",
+  "version": "1.0.0",
   "minWorkbuddyVersion": "5.0.0",
   "examples_zh": [
     "分析我上传的 CSV，核对收入变化",
