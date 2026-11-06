@@ -11,17 +11,30 @@
 | `ava-workbuddy-connector-<version>.zip` | 连接器元信息、MCP 配置和 Skill    |
 | `ava-workbuddy-skill-<version>.zip`     | 单独导入分析指导，需配合 MCP      |
 
-Skill 唯一维护源是 `skills/ava/`。专家包中的 `.mcp.json` 来自 `connector/mcp.json`；打包保留
-`.codebuddy-plugin` 等必需隐藏文件。`public/` 的图标和头像在打包时复制到各包约定的位置；运行包仅包含
-报告需要的模板和图标，测试与 demo 不进入分发包。GitHub 自动生成的源码归档不含 `lib/`，不能直接作为
-MCP 安装包。
+维护边界见[贡献指南](../CONTRIBUTING.md#修改约定)。组包规则：
+
+- 三个 ZIP 共用 `skills/ava/`，不单独维护副本。
+- 专家包的 `.mcp.json` 来自 `connector/mcp.json`；保留 `.codebuddy-plugin` 等必需隐藏文件。
+- 图标和头像从 `public/` 复制到平台要求的位置。TGZ 只附带运行所需的模板和图标，测试与 demo 不入包。
+- GitHub 自动生成的源码归档不含 `lib/`，不能直接作为 MCP 运行包。
+
+## 发布验证
+
+先运行 `npm ci`，再依次执行：
+
+| 命令                       | 验证内容                                                                                             |
+| -------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `npm test`                 | 单元测试、配置版本、资源和专家的 Skill 名称引用                                                      |
+| `npm run test:integration` | 真实 MCP、CSV/XLSX、查询和报告流程                                                                   |
+| `npm run test:package`     | 三个 ZIP 的完整 Skill、两份 MCP 配置及资源与维护源逐字节一致；隔离安装 TGZ，验证类型、API 和完整分析 |
+
+`test:package` 自动重建分发包。自动化不包含 WorkBuddy 客户端导入、平台审核或图表视觉验收。
 
 ## 维护者发版
 
-1. 同步 `package.json`、`npm-shrinkwrap.json`、连接器、专家、Agent、Skill、文档中的版本和安装 URL，
-   更新 CHANGELOG。当前源码的报告功能尚未发布，不覆盖已发布 v0.2.1 文件。
-2. 运行 `npm ci`、`npm test`、`npm run test:integration`、`npm run test:package`。最后一项会构建、打
-   包，并在新目录验证安装、类型声明、公开 API 和完整示例。
+1. 同步包、锁文件、连接器、专家和 Skill 的版本，更新 MCP 安装 URL、文档链接与 CHANGELOG。当前源码的
+   报告功能尚未发布，须发新版本，不覆盖已发布 v0.2.1 文件。
+2. 通过上述发布验证。
 3. 推送源码与 tag，在对应 GitHub Release 上传四个同版本包和 `SHA256SUMS`。预览版标记 prerelease；已
    发布文件不覆盖。
 4. 核对下载链接和校验和，再用远程 TGZ 地址执行 `npx --yes --package=<URL> ava-workbuddy check`。
@@ -42,7 +55,6 @@ MCP 安装指向远程 TGZ。本地打包不会让现有连接自动切换到当
 - 上传 `tests/fixtures/sales.csv`：示例收入 30,000 → 37,500 美元，增加 7,500（25%），分项贡献与总额
   一致。
 - 用户 CSV / XLSX、中文路径、追问和连接重启后重新加载可用。
-- SQL、结果文件和 HTML 可打开，图表经过实际预览；报告功能使用当前源码构建验证。
+- 报告 HTML 与证据 JSON 可打开，SQL 和结果与实际查询一致；无需额外生成重复文件。
+- 跨连接或查询证据移出缓存前完成保存；连接重启后重新查询。图表单独验证实际预览效果。
 - 同一对话只使用一个 AVA MCP 连接，避免重复启用专家内置连接与自定义连接。
-
-自动化测试覆盖本地协议、计算与打包；客户端导入、平台审核和图表视觉预览需人工验收。

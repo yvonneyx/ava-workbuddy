@@ -1,24 +1,26 @@
 # 库 API
 
-核心代码使用 TypeScript，提供 Node.js ESM 与生成的 `.d.ts`。支持 macOS/Linux、Node.js 22.13+。这是本
-地分析库，需要文件系统、子进程和 Unix socket，不适用于浏览器运行环境。
+提供 Node.js ESM 与 `.d.ts`，支持 macOS/Linux、Node.js 22.13+。需要文件系统、子进程和 Unix socket，
+不能在浏览器中运行。
 
 ## 安装
 
-本文描述当前源码 API；已发布 v0.2.1 不含 `artifact()` 和查询证据编号。报告功能需从源码构建。
+本文描述当前源码 API；已发布 v0.2.1 不含 `artifact()` 和查询证据编号。已发布版本的安装入口见
+[README](../README.md#已发布版本)。使用本文接口，先从源码打包：
 
 ```sh
-npm install https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.2.1/ava-workbuddy-0.2.1.tgz
+npm ci
+npm run package
 ```
 
-Release 的 TGZ 已编译，使用者不需要 TypeScript 编译器。源码开发者需要 `npm ci && npm run build`。不
-要安装 GitHub 自动生成的源码归档来直接运行 CLI。
+在调用方项目执行 `npm install /absolute/path/to/ava-workbuddy-<version>.tgz`，安装 `dist/` 中生成的
+预编译包。调用方无需 TypeScript 编译器。
 
 ## 公开入口
 
 | 入口                | 导出                                                        |
 | ------------------- | ----------------------------------------------------------- |
-| `ava-workbuddy`     | `Runtime`、`AVACommandError`、`checkEnvironment` 及结果类型 |
+| `ava-workbuddy`     | `Runtime`、`AVACommandError`、`checkEnvironment` 及公开类型 |
 | `ava-workbuddy/mcp` | `createServer`、`serve`                                     |
 
 仅这两个入口属于公开 API；不要依赖 `lib/` 内部文件。0.x 阶段的 API 变化记录在 CHANGELOG，调整接口时
@@ -26,28 +28,21 @@ Release 的 TGZ 已编译，使用者不需要 TypeScript 编译器。源码开�
 
 ## Runtime
 
-一个实例管理一组自己创建的会话。所有方法返回 Promise，同一会话的并发操作会被拒绝。
+一个实例管理自己创建的会话。方法均返回 Promise；同一会话的并发操作会被拒绝。
 
-| 方法                               | 返回与约束                                                                                                                                                                                                                                                     |
-| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `source(path)`                     | `{ datasetId }`；绝对路径、现存本地 CSV/XLSX，文件只读                                                                                                                                                                                                         |
-| `schema(datasetId)`                | `SchemaResult`；真实表、字段、类型及查询语言                                                                                                                                                                                                                   |
-| `query(datasetId, sql, maxRows?)`  | `ExecutedQueryResult`（含 `queryId`）；只读 SQL，最多 512 KiB；返回行数 1–10000，默认 200                                                                                                                                                                      |
-| `semantic(datasetId, definition?)` | `SemanticDefinition`；省略时读取，传入对象时完整替换，不自动改写 SQL                                                                                                                                                                                           |
-| `viz(spec, output)`                | `{ output }`；`spec` 包含 `chartType` 和 `config`，输出必须是新 `.html` 绝对路径，父目录已存在                                                                                                                                                                 |
-| `artifact(input)`                  | 固定模板分析 HTML；图表使用 AVA 原生 `{ chartType, config }`，数据从 `queryId` 的结果绑定，特殊结构通过 `chartConfigField` 引用；内嵌 SQL、来源和图表，自动保存同名 `.json`，返回 `output`、`dataOutput`、章节数、查询数及 `chartErrors`；两份文件均不得已存在 |
-| `dispose(datasetId)`               | `{ datasetId, disposed: true }`；释放当前实例拥有的空闲会话                                                                                                                                                                                                    |
-| `close()`                          | `CleanupReport`；拒绝新任务、等待已接受任务、释放确定空闲的会话；重复调用复用同一结果                                                                                                                                                                          |
+| 方法                               | 返回与约束                                                                                     |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `source(path)`                     | `{ datasetId }`；绝对路径、现存本地 CSV/XLSX，文件只读                                         |
+| `schema(datasetId)`                | `SchemaResult`；真实表、字段、类型及查询语言                                                   |
+| `query(datasetId, sql, maxRows?)`  | `ExecutedQueryResult`，含 `queryId`；只读 SQL，最多 512 KiB；`maxRows` 为 1–10000，默认 200    |
+| `semantic(datasetId, definition?)` | `SemanticDefinition`；省略时读取，传入对象时完整替换，不自动改写 SQL                           |
+| `viz(spec, output)`                | `{ output }`；`spec` 包含 `chartType` 和 `config`，输出必须是新 `.html` 绝对路径，父目录已存在 |
+| `artifact(input)`                  | 从查询证据生成 HTML 和同名 JSON；返回文件路径、章节数、查询数与 `chartErrors`，详见下文        |
+| `dispose(datasetId)`               | `{ datasetId, disposed: true }`；释放当前实例拥有的空闲会话                                    |
+| `close()`                          | `CleanupReport`；拒绝新任务、等待已接受任务、释放确定空闲的会话；重复调用复用同一结果          |
 
 `QueryResult.data` 为 `Record<string, unknown>[]`。字段来自用户数据，取值前检查或转换类型；不要假定
 数字一定以 JavaScript number 返回。`truncated === true` 时结果不完整，需修改聚合或限制后再分析。
-
-当前源码新增（尚未发布）：`query()` 返回兼容 `QueryResult` 的 `ExecutedQueryResult`，额外包含
-`queryId`。同一 Runtime 保留最近 32 次查询的不可变证据快照，数据集释放后仍可生成报告；关闭 Runtime
-后清除。`ArtifactInput` 从公开库入口导出，字段说明和校验由
-[artifact 输入 schema](../src/artifact.ts) 统一维护，原生数据形状见
-[图表参考](../skills/ava/references/charts.md)。报告生成不会自行验证助手结论，
-`chartPreviewVerified` 保持 false，直到宿主实际预览。
 
 ```ts
 import { Runtime } from 'ava-workbuddy';
@@ -66,8 +61,22 @@ try {
 }
 ```
 
-示例 SQL 仅适用于 [测试 CSV](../tests/fixtures/sales.csv) 的字段。业务文件应先读取 `schema`，按真实
-表名、字段和确认过的指标口径编写查询。
+示例仅打印查询结果，假设表名为 `data` 且有 `revenue` 列。业务文件应先读取 `schema`，按真实字段和确认
+的口径查询。
+
+### 报告与证据保存
+
+- `query()` 返回 `queryId`，对应实际 SQL、结果、来源和执行时间。同一 Runtime 保留最近 32 次查询的不
+  可变快照，释放数据集后仍可生成报告；关闭 Runtime 后清除。
+- `artifact()` 自动保存 HTML 和同名 JSON（`dataOutput`），内含 SQL、结果与证据，无需每次查询后重复导
+  出。输出使用新 `.html` 绝对路径，父目录须存在；HTML 和 JSON 均不可覆盖。
+- 需要保留的证据须在关闭 Runtime 或移出缓存前生成报告或导出。保存的文件不能恢复有效 `queryId`；新
+  Runtime 需重新查询。
+- 图表使用 `{ chartType, config }`，从查询证据绑定数据；特殊数据形状使用 `chartConfigField`。
+  `ArtifactInput` 字段与校验以[输入 schema](../src/artifact.ts) 为准，数据形状见
+  [图表参考](../skills/ava/references/charts.md)。
+- 图表失败时报告仍保留表格和 SQL，错误见 `chartErrors`。工具不核验结论文案； `chartPreviewVerified`
+  返回 false，宿主需另行验证图表预览。
 
 ### 错误与清理
 
@@ -90,7 +99,7 @@ interface CleanupReport {
 
 ## 环境检查
 
-- `checkEnvironment()`：检查 Node.js、系统和固定 AVA 版本；不验证 socket 可用性或图表视觉效果。
+`checkEnvironment()` 检查 Node.js、系统和固定 AVA 版本，不验证 socket 或图表预览。
 
 ## 嵌入 MCP
 
