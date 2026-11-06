@@ -57,6 +57,28 @@ test('MCP first use, CSV/XLSX, read-only queries, charts, errors, and restart', 
     const beforeMissing = await readFile(output);
     const missing = await client.callTool({ name: 'ava_source', arguments: { path: join(directory, 'missing.csv') } });
     assert.equal(missing.isError, true); assert.deepEqual(await readFile(output), beforeMissing);
+    const pie = await call(client, 'ava_query', { datasetId: id, sql: 'SELECT product AS category, CAST(SUM(revenue) AS DOUBLE) AS value FROM data GROUP BY product ORDER BY product' });
+    const histogram = await call(client, 'ava_query', { datasetId: id, sql: "SELECT {'data': list(CAST(revenue AS DOUBLE))} AS chart_config FROM data" });
+    const dual = await call(client, 'ava_query', { datasetId: id, sql: "SELECT {'categories': list(month ORDER BY month), 'series': [{'type': 'column', 'axisYTitle': 'Revenue', 'data': list(revenue ORDER BY month)}]} AS chart_config FROM (SELECT month, CAST(SUM(revenue) AS DOUBLE) AS revenue FROM data GROUP BY month)" });
+    const liquid = await call(client, 'ava_query', { datasetId: id, sql: "SELECT {'percent': (MAX(revenue) - MIN(revenue)) / MIN(revenue)} AS chart_config FROM (SELECT CAST(SUM(revenue) AS DOUBLE) AS revenue FROM data GROUP BY month)" });
+    const native = await call(client, 'ava_artifact', { output: join(directory, 'native.html'), title: 'AVA 原生配置', summary: '图表直接使用查询证据。', sections: [
+      { question: '产品收入占比', conclusion: '使用完整产品汇总。', queryId: pie.queryId, chart: { chartType: 'pie', config: { innerRadius: 0.6, theme: 'light' } } },
+      { question: '收入分布', conclusion: '使用原始收入观测值。', queryId: histogram.queryId, chart: { chartType: 'histogram', config: { binNumber: 4 } }, chartConfigField: 'chart_config' },
+      { question: '月度序列', conclusion: '按月份排列。', queryId: dual.queryId, chart: { chartType: 'dual-axes', config: { axisXTitle: 'Month' } }, chartConfigField: 'chart_config' },
+      { question: '增长比例', conclusion: '增长 25%。', queryId: liquid.queryId, chart: { chartType: 'liquid', config: { shape: 'circle' } }, chartConfigField: 'chart_config' },
+    ] });
+    assert.deepEqual(native.chartErrors, []);
+    const nativeData = JSON.parse(await readFile(native.dataOutput, 'utf8'));
+    const configs = nativeData.charts.map(chart => JSON.parse(chart.html.match(/const visConfig = (.*);/)[1]));
+    assert.deepEqual(configs.map(config => config.type), ['pie', 'histogram', 'dual-axes', 'liquid']);
+    assert.deepEqual(configs[0].data, pie.data); assert.equal(configs[0].innerRadius, 0.6); assert.equal(configs[0].theme, 'light');
+    assert.equal(configs[1].data.length, 8);
+    assert.deepEqual(configs[2].categories, ['2025-01', '2025-02']);
+    assert.deepEqual(configs[2].series[0].data, [30000, 37500]);
+    assert.equal(configs[3].percent, 0.25);
+    const unknown = await call(client, 'ava_artifact', { output: join(directory, 'unknown-chart.html'), title: 'Unknown chart', summary: 'Keep query evidence.',
+      sections: [{ question: 'Q', conclusion: 'C', queryId: pie.queryId, chart: { chartType: 'not-a-chart', config: {} } }] });
+    assert.match(unknown.chartErrors[0].message, /Unknown chartType/);
     const demo = await call(client, 'ava_demo', { outputDirectory: join(directory, 'demo') });
     assert.equal(demo.change, 7500); assert.equal(demo.chartPreviewVerified, false);
     assert.deepEqual(demo.artifactChartErrors, []);
@@ -67,12 +89,12 @@ test('MCP first use, CSV/XLSX, read-only queries, charts, errors, and restart', 
     assert.equal(new Set(artifactData.sections.map(section => section.queryId)).size, 4);
     assert.equal(artifactData.queries.length, 4);
     const evidence = new Map(artifactData.queries.map(query => [query.queryId, query]));
-    assert.equal(Number(evidence.get(artifactData.sections[0].queryId).result.data[0].revenue), 30000);
+    assert.equal(Number(evidence.get(artifactData.sections[0].queryId).result.data[0].value), 30000);
     assert.equal(evidence.get(artifactData.sections[1].queryId).result.data.length, 4);
-    assert.equal(Number(evidence.get(artifactData.sections[2].queryId).result.data[0].revenue), 6000);
+    assert.equal(Number(evidence.get(artifactData.sections[2].queryId).result.data[0].value), 6000);
     assert.equal(Number(evidence.get(artifactData.sections[3].queryId).result.data[0].reconciliation_difference), 0);
     assert.equal(artifactData.charts.length, 3);
-    assert.equal(evidence.get(artifactData.sections[1].queryId).result.data.reduce((sum, row) => sum + Number(row.change), 0), 7500);
+    assert.equal(evidence.get(artifactData.sections[1].queryId).result.data.reduce((sum, row) => sum + Number(row.value), 0), 7500);
     assert.deepEqual((await readdir(demo.outputDirectory)).sort(), ['artifact.html', 'artifact.json', 'query.sql', 'result.json', 'sales.csv']);
     const xlsx = (await call(client, 'ava_source', { path: join(root, 'test/fixtures/销售 数据.xlsx') })).datasetId;
     const excelSchema = await call(client, 'ava_schema', { datasetId: xlsx });

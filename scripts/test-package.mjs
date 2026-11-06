@@ -21,16 +21,19 @@ try {
   });
   // This is a consumer project, so exports and declarations resolve through node_modules.
   await writeFile(join(directory, 'consumer.ts'), `
-import { Runtime, checkEnvironment, type QueryResult, type CleanupReport } from 'ava-workbuddy';
+import { Runtime, checkEnvironment, type ArtifactInput, type QueryResult, type CleanupReport } from 'ava-workbuddy';
 import { createServer } from 'ava-workbuddy/mcp';
 const runtime = new Runtime();
 const source = await runtime.source('/tmp/sales.csv');
 const result: QueryResult = await runtime.query(source.datasetId, 'SELECT 1');
 const rows: Record<string, unknown>[] = result.data;
 const cleanup: CleanupReport = await runtime.close();
+const report: ArtifactInput = { output: '/tmp/native.html', title: 'Native chart', summary: 'Query evidence',
+  sections: [{ question: 'Distribution', conclusion: 'Verified', queryId: 'q_example',
+    chart: { chartType: 'histogram', config: { binNumber: 10, theme: 'light' } }, chartConfigField: 'chart_config' }] };
 const embedded = createServer();
 await embedded.close();
-console.log(rows, cleanup.retained, checkEnvironment().avaVersion);
+console.log(rows, report, cleanup.retained, checkEnvironment().avaVersion);
 // @ts-expect-error SQL must be a string, never arbitrary execution options.
 runtime.query(source.datasetId, 123);
 // @ts-expect-error Internal session ownership is not a mutable public field.

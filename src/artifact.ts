@@ -3,7 +3,7 @@ import { extname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { z } from 'zod/v4';
 import { outputPath } from './ava.js';
-import type { ChartSpec, QueryResult } from './contracts.js';
+import { chartSpec, type ChartSpec, type QueryResult } from './contracts.js';
 
 const text = z.string().trim().min(1).max(20000);
 const queryId = z.string().min(1).max(100).describe('queryId returned by ava_query in this connection');
@@ -17,11 +17,8 @@ export const artifactInput = z.object({
   }).strict()).max(6).default([]),
   sections: z.array(z.object({
     question: text.max(500), conclusion: text, queryId,
-    chart: z.object({
-      type: z.enum(['bar', 'column', 'line']),
-      categoryField: text.max(200), valueField: text.max(200),
-      categoryLabel: text.max(100).optional(), valueLabel: text.max(100).optional(),
-    }).strict().optional(),
+    chart: chartSpec.optional(),
+    chartConfigField: text.max(200).optional().describe('For non-row chart data: a column containing the native AVA config object in a single-row query result'),
   }).strict()).min(1).max(16),
   definitions: z.array(text.max(1000)).max(20).default([]),
   limitations: z.array(text.max(1000)).max(20).default([]),
@@ -42,24 +39,20 @@ function field(evidence: QueryEvidence, name: string) {
   if (!evidence.result.schema.some((column) => column.name === name)) throw new Error(`Unknown result field: ${name}`);
 }
 
-function chartSpec(chart: NonNullable<z.output<typeof artifactInput>['sections'][number]['chart']>, evidence: QueryEvidence): ChartSpec {
+function bindChart(section: z.output<typeof artifactInput>['sections'][number], evidence: QueryEvidence): ChartSpec {
   if (evidence.result.truncated) throw new Error('查询结果已截断，暂不绘图；请先获取完整的聚合结果。');
-  field(evidence, chart.categoryField); field(evidence, chart.valueField);
-  const data = evidence.result.data.map((row) => {
-    const raw = row[chart.valueField];
-    if ((typeof raw !== 'number' && typeof raw !== 'string') || String(raw).trim() === '' || !Number.isFinite(Number(raw))) {
-      throw new Error(`字段 ${chart.valueField} 含非数值或空值，请先在 SQL 中明确处理。`);
-    }
-    const category = row[chart.categoryField];
-    if (category === null || category === undefined) throw new Error(`字段 ${chart.categoryField} 含空值，请先处理。`);
-    return { [chart.type === 'line' ? 'time' : 'category']: String(category), value: Number(raw) };
-  });
-  if (!data.length) throw new Error('查询没有返回数据，暂不绘图。');
-  return { chartType: chart.type, config: {
-    data,
-    axisXTitle: chart.categoryLabel ?? chart.categoryField,
-    axisYTitle: chart.valueLabel ?? chart.valueField,
-  } };
+  const chart = section.chart!;
+  for (const key of ['data', 'categories', 'series', 'percent']) {
+    if (Object.hasOwn(chart.config, key)) throw new Error(`config.${key} must come from query evidence, not inline chart data.`);
+  }
+  if (!evidence.result.data.length) throw new Error('查询没有返回数据，暂不绘图。');
+  let bound: Record<string, unknown> = { data: evidence.result.data };
+  if (section.chartConfigField !== undefined) {
+    field(evidence, section.chartConfigField);
+    if (evidence.result.data.length !== 1) throw new Error('chartConfigField requires a single-row query result.');
+    bound = chartSpec.shape.config.parse(evidence.result.data[0]![section.chartConfigField]);
+  }
+  return { chartType: chart.chartType, config: { ...chart.config, ...bound } };
 }
 
 export async function createArtifact(input: ArtifactInput, history: ReadonlyMap<string, QueryEvidence>, renderChart: RenderChart) {
@@ -89,7 +82,7 @@ export async function createArtifact(input: ArtifactInput, history: ReadonlyMap<
     for (const [index, section] of report.sections.entries()) {
       if (!section.chart) continue;
       try {
-        const spec = chartSpec(section.chart, get(section.queryId));
+        const spec = bindChart(section, get(section.queryId));
         const rendered = await renderChart(spec, join(directory, `chart-${index}.html`));
         charts.push({ section: index + 1, html: await readFile(rendered.output, 'utf8') });
       } catch (error) {

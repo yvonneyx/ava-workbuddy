@@ -23,27 +23,27 @@ export async function runDemo(directory?: string) {
     const schema = await runtime.schema(datasetId);
     assert(schema.models.some((model) => model.tableReference?.table === 'data'), 'Unexpected demo table.');
     // Round 1: establish the overall change before drilling into products.
-    const totals = await runtime.query(datasetId, 'SELECT month, SUM(revenue) AS revenue FROM data GROUP BY month ORDER BY month');
+    const totals = await runtime.query(datasetId, 'SELECT month AS category, CAST(SUM(revenue) AS DOUBLE) AS value FROM data GROUP BY month ORDER BY month');
     assert(!totals.truncated && totals.data.length === 2, 'Incomplete totals.');
     const [januaryRow, februaryRow] = totals.data;
     assert(januaryRow && februaryRow, 'Missing monthly totals.');
-    const january = Number(januaryRow.revenue);
-    const february = Number(februaryRow.revenue);
+    const january = Number(januaryRow.value);
+    const february = Number(februaryRow.value);
     assert.equal(january, 30000); assert.equal(february, 37500);
     // Round 2: inspect the contribution of each product.
     const sql = await readFile(join(root, 'examples/revenue-change.sql'), 'utf8');
     const contributions = await runtime.query(datasetId, sql);
     assert(!contributions.truncated && contributions.data.length === 4, 'Incomplete demo result.');
     const expected: Record<string, number> = { Analytics: 6000, Automation: 2000, Support: 500, Reporting: -1000 };
-    for (const row of contributions.data) assert.equal(Number(row.change), expected[String(row.product)]);
-    assert.equal(contributions.data.reduce((sum, row) => sum + Number(row.change), 0), february - january);
+    for (const row of contributions.data) assert.equal(Number(row.value), expected[String(row.category)]);
+    assert.equal(contributions.data.reduce((sum, row) => sum + Number(row.value), 0), february - january);
     // Round 3 follows the negative contribution found in the previous result.
-    const declining = contributions.data.find((row) => Number(row.change) < 0)!;
-    const product = String(declining.product);
-    const decline = await runtime.query(datasetId, `SELECT month, SUM(revenue) AS revenue FROM data WHERE product = '${product.replaceAll("'", "''")}' GROUP BY month ORDER BY month`);
+    const declining = contributions.data.find((row) => Number(row.value) < 0)!;
+    const product = String(declining.category);
+    const decline = await runtime.query(datasetId, `SELECT month AS time, CAST(SUM(revenue) AS DOUBLE) AS value FROM data WHERE product = '${product.replaceAll("'", "''")}' GROUP BY month ORDER BY month`);
     assert(!decline.truncated && decline.data.length === 2, 'Incomplete product follow-up.');
-    assert.equal(Number(decline.data[0]!.revenue), Number(declining.january));
-    assert.equal(Number(decline.data[1]!.revenue), Number(declining.february));
+    assert.equal(Number(decline.data[0]!.value), Number(declining.january));
+    assert.equal(Number(decline.data[1]!.value), Number(declining.february));
     // Round 4: independently reconcile positive and negative changes in SQL.
     const reconciliation = await runtime.query(datasetId, `WITH products AS (
   SELECT product,
@@ -71,8 +71,8 @@ FROM totals`);
     assert.equal(Number(checked.reconciliation_difference), 0);
     const number = (value: unknown) => new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 }).format(Number(value));
     const overallConclusion = `收入从 ${number(january)} 美元增至 ${number(february)} 美元，净增加 ${number(checked.total_change)} 美元，环比增长 ${number(checked.growth_pct)}%。比较范围为示例数据中的四个产品，按自然月汇总。`;
-    const contributionConclusion = contributions.data.map((row) => `${row.product} ${Number(row.change) < 0 ? '减少' : '增加'} ${number(Math.abs(Number(row.change)))} 美元`).join('；') + `。Analytics 贡献净增量的 ${number(100 * Number(contributions.data.find((row) => row.product === 'Analytics')!.change) / Number(checked.total_change))}%。`;
-    const declineConclusion = `${product} 的收入从 ${number(declining.january)} 美元降至 ${number(declining.february)} 美元，减少 ${number(-Number(declining.change))} 美元，降幅为 ${number(-100 * Number(declining.change) / Number(declining.january))}%。数据只支持确认回落幅度，不能解释原因。`;
+    const contributionConclusion = contributions.data.map((row) => `${row.category} ${Number(row.value) < 0 ? '减少' : '增加'} ${number(Math.abs(Number(row.value)))} 美元`).join('；') + `。Analytics 贡献净增量的 ${number(100 * Number(contributions.data.find((row) => row.category === 'Analytics')!.value) / Number(checked.total_change))}%。`;
+    const declineConclusion = `${product} 的收入从 ${number(declining.january)} 美元降至 ${number(declining.february)} 美元，减少 ${number(-Number(declining.value))} 美元，降幅为 ${number(-100 * Number(declining.value) / Number(declining.january))}%。数据只支持确认回落幅度，不能解释原因。`;
     const reconciliationConclusion = `增长产品合计增加 ${number(checked.gross_increase)} 美元，回落产品合计减少 ${number(checked.gross_decrease)} 美元，相抵后净增加 ${number(checked.product_net_change)} 美元，与总体增量 ${number(checked.total_change)} 美元一致，核对差额为 ${number(checked.reconciliation_difference)} 美元。`;
     await writeFile(join(output, 'result.json'), JSON.stringify(contributions, null, 2), { flag: 'wx' });
     await writeFile(join(output, 'query.sql'), sql, { flag: 'wx' });
@@ -81,20 +81,20 @@ FROM totals`);
       output: join(output, 'artifact.html'), title: '收入变化分析',
       summary: `收入净增加 ${number(checked.total_change)} 美元，环比增长 ${number(checked.growth_pct)}%。`,
       metrics: [
-        { label: '1 月收入', queryId: totals.queryId, field: 'revenue', rowIndex: 0, unit: '美元' },
-        { label: '2 月收入', queryId: totals.queryId, field: 'revenue', rowIndex: 1, unit: '美元' },
+        { label: '1 月收入', queryId: totals.queryId, field: 'value', rowIndex: 0, unit: '美元' },
+        { label: '2 月收入', queryId: totals.queryId, field: 'value', rowIndex: 1, unit: '美元' },
         { label: '净增加', queryId: reconciliation.queryId, field: 'total_change', unit: '美元' },
         { label: '环比增长', queryId: reconciliation.queryId, field: 'growth_pct', unit: '%' },
       ],
       sections: [
         { question: '这两个月，收入发生了什么变化？',
           conclusion: overallConclusion,
-          queryId: totals.queryId, chart: { type: 'column', categoryField: 'month', valueField: 'revenue', categoryLabel: '月份', valueLabel: '收入（美元）' } },
+          queryId: totals.queryId, chart: { chartType: 'column', config: { axisXTitle: '月份', axisYTitle: '收入（美元）' } } },
         { question: '哪些产品贡献了增长，哪些在回落？',
           conclusion: contributionConclusion,
-          queryId: contributions.queryId, chart: { type: 'bar', categoryField: 'product', valueField: 'change', categoryLabel: '产品', valueLabel: '收入变化（美元）' } },
+          queryId: contributions.queryId, chart: { chartType: 'bar', config: { axisXTitle: '产品', axisYTitle: '收入变化（美元）' } } },
         { question: `${product} 的回落幅度有多大？`, conclusion: declineConclusion,
-          queryId: decline.queryId, chart: { type: 'line', categoryField: 'month', valueField: 'revenue', categoryLabel: '月份', valueLabel: '收入（美元）' } },
+          queryId: decline.queryId, chart: { chartType: 'line', config: { axisXTitle: '月份', axisYTitle: '收入（美元）' } } },
         { question: '产品增减能否与总体变化核对？', conclusion: reconciliationConclusion, queryId: reconciliation.queryId },
       ],
       definitions: ['时间：2025 年 1 月与 2 月，按自然月比较。', '指标：revenue 的合计值；金额单位为美元。', '产品变化 = 2 月收入 − 1 月收入；环比 = 收入变化 ÷ 1 月收入。'],

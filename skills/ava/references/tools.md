@@ -25,17 +25,44 @@ Available in the current source build; the published v0.2.1 release does not yet
     "question": "How did revenue change?",
     "conclusion": "State the computed change and its scope.",
     "queryId": "<actual queryId returned by ava_query>",
-    "chart": { "type": "column", "categoryField": "month", "valueField": "revenue", "valueLabel": "Revenue (USD)" }
+    "chart": { "chartType": "column", "config": { "axisXTitle": "Month", "axisYTitle": "Revenue (USD)" } }
   }],
-  "metrics": [{ "label": "January revenue", "queryId": "<actual queryId>", "field": "revenue", "rowIndex": 0, "unit": "USD" }],
+  "metrics": [{ "label": "January revenue", "queryId": "<actual queryId>", "field": "value", "rowIndex": 0, "unit": "USD" }],
   "definitions": ["Calendar-month totals in USD."],
   "limitations": ["Revenue alone does not explain its causes or profitability."]
 }
 ```
 
-The parent directory must exist. Sections: 1–16; metrics: 0–6. Chart types: `bar`, `column`, `line`; optional `categoryLabel` and `valueLabel`. Result fields and numeric metric values are validated. The last 32 query snapshots remain available in the same connection, even after disposal; connection restart clears them. Unknown/expired IDs fail explicitly. A truncated result remains visibly flagged and is not plotted. A chart failure preserves the report's table and SQL and is returned in `chartErrors`.
+The parent directory must exist. Sections: 1–16; metrics: 0–6. Charts use the same `{ chartType, config }` structure as `ava_viz`; AVA validates chart types and renders them. Titles, axes, legends, grouping, stacking, themes and styles pass through as native AVA/GPT-Vis options. The former `type`/`categoryField`/`valueField` chart input is replaced by this native structure.
 
-The fixed template is `templates/artifact.html` in the integration package. Only its JSON data slot changes between reports; all report fields bind through `textContent` and DOM nodes, without model-written HTML. The report uses a compact black, white and grayscale layout; charts use the GPT-Vis default theme without palette overrides. Tables, exact SQL and evidence JSON are embedded. Source filenames are included, not full source paths. Charts are sandboxed and loaded from embedded HTML; GPT-Vis still loads from the network. The same payload is automatically saved beside the HTML with a `.json` extension (`dataOutput`); both paths must be new. Saved files are private (`0600`) and never overwritten. Exporting/sharing the HTML shares its embedded query results.
+For normal row-based charts, artifact binds the section's saved query rows directly to `config.data`. Use SQL aliases and casts to produce the native fields and numeric types, for example:
+
+```sql
+SELECT month AS category, CAST(SUM(revenue) AS DOUBLE) AS value
+FROM data GROUP BY month ORDER BY month
+```
+
+Do not supply inline `config.data`, `categories`, `series` or `percent`; these values must come from query evidence. Artifact does not rename columns, convert chart values, build series or choose a palette.
+
+For native shapes beyond row objects (histogram arrays, dual-axis categories/series, liquid percent), add `chartConfigField` to the section. It names a column containing a native config object in exactly one query row. For example:
+
+```sql
+SELECT {'data': list(CAST(revenue AS DOUBLE))} AS chart_config FROM data
+```
+
+```json
+{
+  "question": "How is revenue distributed?",
+  "conclusion": "Describe the observed distribution.",
+  "queryId": "<actual queryId>",
+  "chart": { "chartType": "histogram", "config": { "binNumber": 10 } },
+  "chartConfigField": "chart_config"
+}
+```
+
+The object from `chartConfigField` is merged into the native config without changing its shape and takes precedence over supplied presentation options. It must be an object, not a JSON string or multiple query rows. Result fields and numeric metric values are validated. The last 32 query snapshots remain available in the same connection, even after disposal; connection restart clears them. Unknown/expired IDs fail explicitly. A truncated result remains visibly flagged and is not plotted. A chart failure preserves the report's table and SQL and is returned in `chartErrors`.
+
+The fixed template is `templates/artifact.html` in the integration package. Only its JSON data slot changes between reports; all report fields bind through `textContent` and DOM nodes, without model-written HTML. The report uses a compact black, white and grayscale layout; chart appearance follows the supplied AVA config and its defaults. Tables, exact SQL and evidence JSON are embedded. Source filenames are included, not full source paths. Charts are sandboxed and loaded from embedded HTML; GPT-Vis still loads from the network. The same payload is automatically saved beside the HTML with a `.json` extension (`dataOutput`); both paths must be new. Saved files are private (`0600`) and never overwritten. Exporting/sharing the HTML shares its embedded query results.
 
 The MCP uses structured arguments and executes AVA without a shell. It never accepts arbitrary shell commands, database credentials or model API keys. It runs with WorkBuddy's local process permissions; it is not an additional filesystem sandbox. Analysis still uses WorkBuddy's model and follows that model's data handling and pricing.
 

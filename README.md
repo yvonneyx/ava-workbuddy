@@ -56,7 +56,7 @@ node lib/cli.js demo /absolute/path/to/a-new-directory
 | `ava_artifact` | 将多轮问题、结论、指标、图表、结果表和 SQL 汇总为报告 |
 | `ava_dispose` | 释放当前连接创建的空闲会话 |
 
-`ava_artifact` 使用 [`templates/artifact.html`](templates/artifact.html) 固定模板，从实际查询记录取得 SQL 和结果，并保存同名证据 JSON。同一连接保留最近 32 次查询；追问时传入完整章节，使用新文件名生成新版报告。参数见 [工具说明](skills/ava/references/tools.md#analysis-artifact)。
+`ava_artifact` 使用 [`templates/artifact.html`](templates/artifact.html) 固定模板，从实际查询记录取得 SQL 和结果，并保存同名证据 JSON。图表沿用 AVA 的 `chartType/config`，数据从查询证据绑定，外观交给 AVA。相同的配置结构也用于 `ava_viz`。同一连接保留最近 32 次查询；追问时传入完整章节，使用新文件名生成新版报告。参数见 [工具说明](skills/ava/references/tools.md#analysis-artifact)。
 
 - 数据在本地 AVA 进程中计算；查询结果返回 WorkBuddy，适用其模型服务的数据处理规则。
 - 源文件只读，已有输出不覆盖。进程使用 WorkBuddy 授予的本地权限，本项目不提供额外文件系统沙箱。

@@ -2,6 +2,8 @@
 
 ## 未发布
 
+- artifact 图表改用 AVA 原生 `chartType/config`，移除三种图表专用的字段转换。默认绑定 SQL 原生结果行；`chartConfigField` 支持从单行查询配置对象绑定特殊数据结构。展示选项与图表类型校验交给 AVA，旧 `type/categoryField/valueField` 参数不再支持。
+
 - 精简运行时的重复会话状态、示例重复产物、模板隐藏字段与 CI 重复检查；分发包不再附带开发和发布文档。示例只生成一份报告及配套证据，移除 `chart`、`alternateArtifact` 返回字段。
 
 - 新增 `ava_artifact` 和 `Runtime.artifact()`：按固定模板生成包含多轮问题、结论、指标、图表、结果表和 SQL 的 HTML，并保存同名证据 JSON，禁止覆盖已有文件。

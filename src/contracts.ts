@@ -19,13 +19,14 @@ export const queryResult = z.looseObject({
 export const semanticResult = z.record(z.string(), z.unknown());
 export const vizResult = z.object({ output: z.string() });
 export const disposeResult = z.object({ datasetId: z.string(), disposed: z.literal(true) });
+export const chartSpec = z.object({ chartType: z.string(), config: z.record(z.string(), z.unknown()) }).strict();
 
 export type SourceResult = z.infer<typeof sourceResult>;
 export type SchemaResult = z.infer<typeof schemaResult>;
 export type QueryResult = z.infer<typeof queryResult>;
 export type ExecutedQueryResult = QueryResult & { queryId: string };
 export type SemanticDefinition = z.infer<typeof semanticResult>;
-export interface ChartSpec { chartType: string; config: Record<string, unknown> }
+export type ChartSpec = z.infer<typeof chartSpec>;
 export interface CleanupReport {
   disposed: string[];
   retained: string[];

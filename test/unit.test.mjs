@@ -228,20 +228,21 @@ test('artifact rejects unknown evidence and invalid metrics instead of inventing
   } finally { runtime.command = async () => ({ datasetId: id, disposed: true }); await runtime.close(); await rm(directory, { recursive: true, force: true }); }
 });
 
-test('artifact maps chart data from saved results and retains tables on chart failure or truncation', async () => {
+test('artifact passes native AVA options and saved rows, retaining evidence on chart failure or truncation', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'ava-artifact-'));
   const runtime = await loaded();
-  const chart = { type: 'bar', categoryField: 'label', valueField: 'value' };
+  const chart = { chartType: 'pie', config: { title: 'Share', innerRadius: 0.6, theme: 'academy', style: { palette: ['#222222', '#999999'] } } };
   try {
     runtime.command = async (args, input) => {
-      if (args[0] === 'query') return { schema: [{ name: 'label' }, { name: 'value' }], data: [{ label: 'A', value: 7 }] };
+      if (args[0] === 'query') return { schema: [{ name: 'category' }, { name: 'value' }], data: [{ category: 'A', value: 7 }] };
       if (args[0] === 'viz') {
-        assert.deepEqual(JSON.parse(input).config.data, [{ category: 'A', value: 7 }]);
+        assert.deepEqual(JSON.parse(input), { chartType: 'pie', config: { ...chart.config, data: [{ category: 'A', value: 7 }] } });
         const output = args.at(-1); await writeFile(output, '<html><body>chart</body></html>'); return { output };
       }
       return { datasetId: id, disposed: true };
     };
-    const result = await runtime.query(id, 'SELECT label, value FROM data');
+    const result = await runtime.query(id, 'SELECT label AS category, value FROM data');
+    result.data[0].value = 999;
     const base = { title: 'Report', summary: 'Summary', sections: [{ question: 'Q', conclusion: 'C', queryId: result.queryId, chart }] };
     const output = join(directory, 'chart.html');
     assert.deepEqual((await runtime.artifact({ ...base, output })).chartErrors, []);
@@ -251,11 +252,63 @@ test('artifact maps chart data from saved results and retains tables on chart fa
     const failed = await runtime.artifact({ ...base, output: join(directory, 'failed.html') });
     assert.deepEqual(failed.chartErrors, [{ section: 1, message: 'renderer failed' }]);
     assert((await readFile(failed.output, 'utf8')).includes('<table>'));
-    runtime.command = async () => ({ schema: [{ name: 'label' }, { name: 'value' }], data: [{ label: 'A', value: 7 }], truncated: true });
+    runtime.command = async () => ({ schema: [{ name: 'category' }, { name: 'value' }], data: [{ category: 'A', value: 7 }], truncated: true });
     const truncated = await runtime.query(id, 'SELECT label, value FROM data', 1);
     const limited = await runtime.artifact({ ...base, output: join(directory, 'limited.html'), sections: [{ ...base.sections[0], queryId: truncated.queryId }] });
     assert.match(limited.chartErrors[0].message, /截断/);
     assert((await readFile(limited.output, 'utf8')).includes('本报告包含截断'));
+  } finally { runtime.command = async () => ({ datasetId: id, disposed: true }); await runtime.close(); await rm(directory, { recursive: true, force: true }); }
+});
+
+test('artifact binds native histogram, dual-axis and liquid configs from one query cell', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'ava-native-config-'));
+  const runtime = await loaded();
+  try {
+    for (const [chartType, bound] of [
+      ['histogram', { data: [10, 20, 30] }],
+      ['dual-axes', { categories: ['Jan', 'Feb'], series: [{ type: 'column', data: [10, 20] }, { type: 'line', data: [1, 2] }] }],
+      ['liquid', { percent: 0.25 }],
+    ]) {
+      const chart = { chartType, config: { title: 'Native config', theme: 'dark' } };
+      runtime.command = async (args, input) => {
+        if (args[0] === 'query') return { schema: [{ name: 'chart_config' }], data: [{ chart_config: bound }] };
+        if (args[0] === 'viz') {
+          assert.deepEqual(JSON.parse(input), { chartType, config: { ...chart.config, ...bound } });
+          const output = args.at(-1); await writeFile(output, '<html>chart</html>'); return { output };
+        }
+        return { datasetId: id, disposed: true };
+      };
+      const result = await runtime.query(id, 'SELECT native_config AS chart_config');
+      result.data[0].chart_config = { data: ['changed after query'] };
+      const report = await runtime.artifact({ output: join(directory, `${chartType}.html`), title: 'Native chart', summary: 'Verified data',
+        sections: [{ question: 'Q', conclusion: 'C', queryId: result.queryId, chart, chartConfigField: 'chart_config' }] });
+      assert.deepEqual(report.chartErrors, []);
+    }
+  } finally { runtime.command = async () => ({ datasetId: id, disposed: true }); await runtime.close(); await rm(directory, { recursive: true, force: true }); }
+});
+
+test('artifact refuses inline chart data and ambiguous config evidence without calling AVA', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'ava-chart-evidence-'));
+  const runtime = await loaded();
+  let files = 0;
+  const report = async (queryId, chart, chartConfigField) => runtime.artifact({ output: join(directory, `${files++}.html`), title: 'Evidence', summary: 'Summary',
+    sections: [{ question: 'Q', conclusion: 'C', queryId, chart, ...(chartConfigField === undefined ? {} : { chartConfigField }) }] });
+  try {
+    runtime.command = async () => rows;
+    const result = await runtime.query(id, 'SELECT 1 AS value');
+    for (const key of ['data', 'categories', 'series', 'percent']) {
+      const rejected = await report(result.queryId, { chartType: 'pie', config: { [key]: 'invented' } });
+      assert.match(rejected.chartErrors[0].message, /must come from query evidence/);
+    }
+    const missing = await report(result.queryId, { chartType: 'histogram', config: {} }, 'missing');
+    assert.match(missing.chartErrors[0].message, /Unknown result field/);
+    runtime.command = async () => ({ schema: [{ name: 'chart_config' }], data: [{ chart_config: {} }, { chart_config: {} }] });
+    const multiple = await runtime.query(id, 'SELECT config AS chart_config');
+    assert.match((await report(multiple.queryId, { chartType: 'histogram', config: {} }, 'chart_config')).chartErrors[0].message, /single-row/);
+    runtime.command = async () => ({ schema: [{ name: 'chart_config' }], data: [{ chart_config: 'not an object' }] });
+    const invalid = await runtime.query(id, 'SELECT config AS chart_config');
+    assert.equal((await report(invalid.queryId, { chartType: 'histogram', config: {} }, 'chart_config')).chartErrors.length, 1);
+    assert(!runtime.calls.some(({ args }) => args[0] === 'viz'));
   } finally { runtime.command = async () => ({ datasetId: id, disposed: true }); await runtime.close(); await rm(directory, { recursive: true, force: true }); }
 });
 

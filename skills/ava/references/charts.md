@@ -1,7 +1,7 @@
 # Chart configuration
 
 `ava_viz` accepts `{ "spec": { "chartType": "bar", "config": { ... } }, "output": "/absolute/new/chart.html" }`.
-`config.type` is filled/overridden by AVA. Numbers must be numbers; put units in titles, not values. The old `syntax` format is invalid.
+`config.type` is filled/overridden by AVA. Numbers must be numbers; put units in titles, not values. The same `{ chartType, config }` structure is used by artifact sections, with data bound from query evidence; see [artifact inputs](tools.md#analysis-artifact).
 
 | Intent | chartType | config data |
 | --- | --- | --- |
@@ -20,7 +20,6 @@ For example, after a verified regional query returns East=25 and West=20:
 {
   "chartType": "bar",
   "config": {
-    "type": "bar",
     "data": [{"category": "East", "value": 25}, {"category": "West", "value": 20}],
     "title": "Revenue by region (USD)",
     "axisXTitle": "Region",

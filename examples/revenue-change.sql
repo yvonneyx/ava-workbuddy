@@ -6,6 +6,6 @@ WITH monthly AS (
   WHERE month IN ('2025-01', '2025-02')
   GROUP BY product
 )
-SELECT product, january, february, february - january AS change
+SELECT product AS category, january, february, CAST(february - january AS DOUBLE) AS value
 FROM monthly
-ORDER BY change DESC;
+ORDER BY value DESC;

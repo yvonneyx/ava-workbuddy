@@ -6,6 +6,7 @@ import { checkEnvironment } from './ava.js';
 import { metadata } from './metadata.js';
 import { runDemo } from './demo.js';
 import { artifactInput } from './artifact.js';
+import { chartSpec } from './contracts.js';
 
 export function createServer(runtime = new Runtime()) {
   const server = new McpServer({ name: 'ava-workbuddy', version: metadata.version });
@@ -46,9 +47,9 @@ export function createServer(runtime = new Runtime()) {
     datasetId: id, definition: z.record(z.string(), z.unknown()).optional(),
   }), ({ datasetId, definition }) => runtime.semantic(datasetId, definition));
   register('ava_viz', 'Render verified query results as a GPT-Vis chart HTML. Spec requires chartType and config, not syntax. Absolute output path must be new; parent directory must exist. HTML needs network for GPT-Vis; generation does not prove visual rendering.', z.object({
-    spec: z.object({ chartType: z.string(), config: z.record(z.string(), z.unknown()) }).strict(), output: z.string(),
+    spec: chartSpec, output: z.string(),
   }), ({ spec, output }) => runtime.viz(spec, output));
-  register('ava_artifact', 'Create one fixed-template analysis HTML and matching evidence JSON with user questions, assistant conclusions, charts, tables, and exact executed SQL. Reference ava_query queryIds from this connection; never supply copied results or invented IDs. Metrics read numeric fields from saved results. Charts map category/value fields directly from the same result (bar, column, line). Embed data and sandboxed chart HTML; chart runtime needs network. Use NEW .html and matching .json paths for each revision. This saves assistant-written conclusions but does not independently verify them or browser rendering.', artifactInput,
+  register('ava_artifact', 'Create one fixed-template analysis HTML and matching evidence JSON with questions, conclusions, charts, tables, and exact SQL. Reference ava_query queryIds from this connection. Charts use AVA chartType/config; query rows supply config.data, so alias SQL columns to native GPT-Vis fields. For special data shapes, chartConfigField selects a native config object from a single-row query. Never provide inline data, categories, series or percent; these must come from query evidence. Other chart options pass through to AVA. Use NEW .html and matching .json paths. This does not independently verify assistant conclusions or browser rendering.', artifactInput,
     (input) => runtime.artifact(input));
   register('ava_dispose', 'Release an idle dataset owned by this connection. Do not use to cancel a running or timed-out query. Saved HTML and result files remain available.', z.object({ datasetId: id }), ({ datasetId }) => runtime.dispose(datasetId));
   const close = () => {

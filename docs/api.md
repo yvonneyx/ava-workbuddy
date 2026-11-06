@@ -32,7 +32,7 @@ Release 的 TGZ 已编译，使用者不需要 TypeScript 编译器。源码开�
 | `query(datasetId, sql, maxRows?)` | `ExecutedQueryResult`（含 `queryId`）；只读 SQL，最多 512 KiB；返回行数 1–10000，默认 200 |
 | `semantic(datasetId, definition?)` | `SemanticDefinition`；省略时读取，传入对象时完整替换，不自动改写 SQL |
 | `viz(spec, output)` | `{ output }`；`spec` 包含 `chartType` 和 `config`，输出必须是新 `.html` 绝对路径，父目录已存在 |
-| `artifact(input)` | 固定模板分析 HTML；按 `queryId` 内嵌执行结果、SQL、来源和图表，自动保存同名 `.json`，返回 `output`、`dataOutput`、章节数、查询数及 `chartErrors`；两份文件均不得已存在 |
+| `artifact(input)` | 固定模板分析 HTML；图表使用 AVA 原生 `{ chartType, config }`，数据从 `queryId` 的结果绑定，特殊结构通过 `chartConfigField` 引用；内嵌 SQL、来源和图表，自动保存同名 `.json`，返回 `output`、`dataOutput`、章节数、查询数及 `chartErrors`；两份文件均不得已存在 |
 | `dispose(datasetId)` | `{ datasetId, disposed: true }`；释放当前实例拥有的空闲会话 |
 | `close()` | `CleanupReport`；拒绝新任务、等待已接受任务、释放确定空闲的会话；重复调用复用同一结果 |
 
