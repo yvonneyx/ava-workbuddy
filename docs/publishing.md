@@ -1,7 +1,8 @@
 # 打包与发布
 
-1.0.0 已完成本地打包与验证，尚未发布 GitHub Release，也未提交 WorkBuddy。正式投递前需先公开运行
-TGZ，确保包内 MCP 安装地址可用。
+1.0.0 的运行包、专家包、连接器包和校验和统一通过
+[GitHub Release](https://github.com/yvonneyx/ava-workbuddy/releases/tag/v1.0.0) 分发。
+WorkBuddy 平台投递与审核另行进行。
 
 ## 分发包
 
@@ -47,7 +48,7 @@ MCP 安装指向远程 TGZ。本地打包不会让现有连接自动切换到当
 ## WorkBuddy 投递
 
 专家投递上传 `ava-workbuddy-expert-1.0.0.zip`；连接器投递上传
-`ava-workbuddy-connector-1.0.0.zip`。TGZ 需要发布到公开的 GitHub Release，供包内 MCP 配置通过 `npx`
+`ava-workbuddy-connector-1.0.0.zip`。TGZ 位于同一公开 GitHub Release，供包内 MCP 配置通过 `npx`
 安装。校验文件为同一 Release 中的 `SHA256SUMS`。
 
 专家字段由 ZIP 内 `.codebuddy-plugin/plugin.json` 提供，Agent 声明、头像和 `.mcp.json` 已组包。平台
