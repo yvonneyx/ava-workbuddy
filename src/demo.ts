@@ -88,7 +88,7 @@ FROM totals`);
     const summary = `${overallConclusion} ${reconciliationConclusion} 这份模拟数据无法说明变化原因。`;
     const artifact = await runtime.artifact({
       output: join(output, 'artifact.html'), title: '收入变化分析',
-      summary: `收入净增加 ${number(checked.total_change)} 美元，环比增长 ${number(checked.growth_pct)}%。四轮查询依次核对总体变化、产品贡献、${product} 回落和增量一致性；每轮保留各自的数据、SQL 与执行记录。`,
+      summary: `收入净增加 ${number(checked.total_change)} 美元，环比增长 ${number(checked.growth_pct)}%。`,
       metrics: [
         { label: '1 月收入', queryId: totals.queryId, field: 'revenue', rowIndex: 0, unit: '美元' },
         { label: '2 月收入', queryId: totals.queryId, field: 'revenue', rowIndex: 1, unit: '美元' },
@@ -111,7 +111,7 @@ FROM totals`);
     });
     const compactArtifact = await runtime.artifact({
       output: join(output, 'artifact-products.html'), title: '2 月各产品收入',
-      summary: '使用同一个固定模板，仅替换标题、问题、结论与图表字段。',
+      summary: '2 月收入合计 37,500 美元，Analytics 收入最高，为 18,000 美元。',
       sections: [{ question: '各产品 2 月收入分别是多少？',
         conclusion: 'Analytics 为 18,000 美元，Automation 为 10,000 美元，Reporting 为 5,000 美元，Support 为 4,500 美元。合计 37,500 美元。',
         queryId: contributions.queryId, chart: { type: 'bar', categoryField: 'product', valueField: 'february', categoryLabel: '产品', valueLabel: '2 月收入（美元）' } }],
