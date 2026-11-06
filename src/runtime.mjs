@@ -16,14 +16,14 @@ const avaCLI = resolve(dirname(avaMetadataPath), avaMetadata.bin.ava);
 export function checkEnvironment(nodeVersion = process.versions.node, platform = process.platform) {
   const [major, minor] = nodeVersion.split('.').map(Number);
   if (!(major > 22 || (major === 22 && minor >= 13))) throw new Error('Node.js 22.13.0 or newer is required.');
-  if (!['darwin', 'linux'].includes(platform)) throw new Error('AVA sessions currently support macOS/Linux only. Windows is not supported in v0.1.0.');
+  if (!['darwin', 'linux'].includes(platform)) throw new Error(`AVA sessions currently support macOS/Linux only. Windows is not supported in v${metadata.version}.`);
   if (avaMetadata.version !== metadata.dependencies['@antv/ava']) throw new Error('Installed AVA does not match the pinned version. Reinstall this integration.');
   return { ready: true, integrationVersion: metadata.version, avaVersion: avaMetadata.version, nodeVersion, platform, authentication: 'none-local-stdio', chartPreviewVerified: false };
 }
 
 export async function sourcePath(path) {
   if (!isAbsolute(path)) throw new Error('Provide an absolute path to the local file supplied by the user.');
-  if (!['.csv', '.xlsx'].includes(extname(path).toLowerCase())) throw new Error('v0.1.0 accepts local CSV and XLSX files only.');
+  if (!['.csv', '.xlsx'].includes(extname(path).toLowerCase())) throw new Error(`v${metadata.version} accepts local CSV and XLSX files only.`);
   const resolved = await realpath(path);
   if (!(await stat(resolved)).isFile()) throw new Error('The source must be a regular file.');
   await access(resolved);

@@ -7,7 +7,7 @@
   "description_en": "Analyze local CSV and Excel files, verify metric changes, and produce results and interactive charts without another model key.",
   "source": "yvonneyx-ava",
   "type": "mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "minWorkbuddyVersion": "5.0.0",
   "examples_zh": ["用示例数据体验收入变化分析", "分析我上传的 Excel，找出收入变化最大的产品", "核对各产品变化之和，并生成图表"],
   "examples_en": ["Try the revenue-change example", "Analyze my Excel and find the largest product changes", "Reconcile product contributions and create a chart"]

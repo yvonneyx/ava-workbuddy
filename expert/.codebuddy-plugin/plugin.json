@@ -1,6 +1,6 @@
 {
   "name": "ava-data-analyst",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Analyze local business data with AVA and deliver verified results and charts.",
   "author": { "name": "yvonneyx", "email": "zhuyuxin0627@gmail.com" },
   "agents": ["./agents/ava-data-analyst.md"],

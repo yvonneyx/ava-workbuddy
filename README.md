@@ -1,12 +1,14 @@
 # AVA for WorkBuddy
 
+<img src="connector/icon.svg" width="88" alt="AntV logo">
+
 **在 WorkBuddy 中分析本地 CSV / Excel，得到有依据的结论、结果表和交互图表。**
 
 上传表格、描述问题，WorkBuddy 负责理解需求和组织分析，AVA 负责读取数据、执行计算和生成图表。你可以继续追问，也可以查看实际执行的 SQL 和结果，核对每个结论。
 
 [开始试用](#开始试用) · [发布专家](#发布专家) · [开发与验证](#开发与验证) · [常见问题](#常见问题)
 
-> **当前版本：v0.1.0 预览版**
+> **当前版本：v0.1.1 预览版**
 >
 > 支持 **macOS / Linux、WorkBuddy 5.0.0+**，暂不支持 Windows。沿用 WorkBuddy 的模型，无需另配模型 API Key。
 
@@ -39,7 +41,7 @@
       "command": "npx",
       "args": [
         "--yes",
-        "--package=https://github.com/yvonneyx/ava-workbuddy/archive/refs/tags/v0.1.0.tar.gz",
+        "--package=https://github.com/yvonneyx/ava-workbuddy/archive/refs/tags/v0.1.1.tar.gz",
         "ava-workbuddy",
         "serve"
       ],
@@ -78,7 +80,7 @@
 
 ### 3. 换成自己的表格
 
-建议先下载并导入 [AVA Skill ZIP](https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.1.0/ava-workbuddy-skill-0.1.0.zip)：在「技能 → 添加技能 → 上传技能」中完成安装。Skill 提供分析指导，需配合第 1 步连接的 MCP 使用。
+建议先下载并导入 [AVA Skill ZIP](https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.1.1/ava-workbuddy-skill-0.1.1.zip)：在「技能 → 添加技能 → 上传技能」中完成安装。Skill 提供分析指导，需配合第 1 步连接的 MCP 使用。
 
 然后上传本地 CSV 或 XLSX，描述你的问题，例如：
 
@@ -95,7 +97,7 @@
 
 如果希望其他用户通过「AVA 数据分析师」入口使用，可以上传专家包到 WorkBuddy 开放平台。
 
-1. 下载 [专家 ZIP](https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.1.0/ava-workbuddy-expert-0.1.0.zip)。
+1. 下载 [专家 ZIP](https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.1.1/ava-workbuddy-expert-0.1.1.zip)。
 2. 打开 [创建专家页面](https://open.workbuddy.cn/expert/publish?action=create&step=1)，上传 ZIP，补齐平台要求的信息。
 3. 在平台可用的试用环节连接内置 MCP，验证示例及自己的文件，再按流程提交审核和发布。
 
@@ -105,11 +107,11 @@
 
 | 下载 | 用途 |
 | --- | --- |
-| [专家包](https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.1.0/ava-workbuddy-expert-0.1.0.zip) | 提供完整的「AVA 数据分析师」入口，内置 Skill 和 MCP 配置 |
-| [连接器包](https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.1.0/ava-workbuddy-connector-0.1.0.zip) | 提交连接器市场审核，供用户单独安装 AVA 工具 |
-| [Skill 包](https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.1.0/ava-workbuddy-skill-0.1.0.zip) | 手动导入分析指导，与已连接的 MCP 配合使用 |
+| [专家包](https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.1.1/ava-workbuddy-expert-0.1.1.zip) | 提供完整的「AVA 数据分析师」入口，内置 Skill 和 MCP 配置 |
+| [连接器包](https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.1.1/ava-workbuddy-connector-0.1.1.zip) | 提交连接器市场审核，供用户单独安装 AVA 工具 |
+| [Skill 包](https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.1.1/ava-workbuddy-skill-0.1.1.zip) | 手动导入分析指导，与已连接的 MCP 配合使用 |
 
-文件校验值见 [SHA256SUMS](https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.1.0/SHA256SUMS)，完整操作步骤见 [发布指南](docs/publishing.md)。同一对话使用一个 AVA MCP 连接即可，避免重复启用专家内置连接与手动添加的同名连接。
+文件校验值见 [SHA256SUMS](https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.1.1/SHA256SUMS)，完整操作步骤见 [发布指南](docs/publishing.md)。同一对话使用一个 AVA MCP 连接即可，避免重复启用专家内置连接与手动添加的同名连接。
 
 ## 它如何工作
 

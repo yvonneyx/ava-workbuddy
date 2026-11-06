@@ -5,7 +5,7 @@ display_name_en: AVA Data Analysis
 description: Analyze user-provided local CSV and Excel files with AVA tools, verify metric changes and business definitions, and create interactive charts. Use for spreadsheet analysis and the bundled first-run demo.
 description_zh: 分析本地表格，核对指标变化和业务口径，生成可复查的结论、结果表与交互图表。
 description_en: Analyze local spreadsheets, verify metric changes, and deliver traceable results and interactive charts.
-version: 0.1.0
+version: 0.1.1
 author: yvonneyx
 examples_zh:
   - 用示例数据体验收入变化分析
@@ -24,7 +24,7 @@ Use the tools of the local `yvonneyx-ava` MCP connection. WorkBuddy reasons and 
 ## First use
 
 - Sample request: call `ava_demo` with a new absolute output directory, or omit it for a temporary directory. The tool computes the bundled 8-row synthetic example and verifies independent totals and contributions. Report its actual returned findings and files. This is a connectivity/demo check, not an analysis of the user's business.
-- Own file: obtain the actual local attachment path; call `ava_source`, then `ava_schema`. Never guess the path, table names, or columns. v0.1.0 supports CSV/XLSX on macOS/Linux.
+- Own file: obtain the actual local attachment path; call `ava_source`, then `ava_schema`. Never guess the path, table names, or columns. v0.1.1 supports CSV/XLSX on macOS/Linux.
 - A lightweight `ava_check` can identify runtime/version errors. A successful check alone does not prove that background sessions or charts work.
 
 ## Analyze
