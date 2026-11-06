@@ -80,10 +80,17 @@ import {
   type ArtifactInput,
   type QueryResult,
   type CleanupReport,
+  type SourceConfig,
+  type FileSourceType,
 } from 'ava-workbuddy';
 import { createServer } from 'ava-workbuddy/mcp';
 const runtime = new Runtime();
 const source = await runtime.source('/tmp/sales.csv');
+const sourceConfig: SourceConfig = { type: 'json', options: { data: [{ value: 1 }] } };
+const inline = await runtime.source(sourceConfig);
+const fileType: FileSourceType = 'json-file';
+await runtime.source('https://example.com/data', fileType);
+await runtime.dispose(inline.datasetId);
 const result: QueryResult = await runtime.query(source.datasetId, 'SELECT 1');
 const rows: Record<string, unknown>[] = result.data;
 const cleanup: CleanupReport = await runtime.close();
@@ -106,6 +113,8 @@ await embedded.close();
 console.log(rows, report, cleanup.retained, checkEnvironment().avaVersion);
 // @ts-expect-error SQL must be a string, never arbitrary execution options.
 runtime.query(source.datasetId, 123);
+// @ts-expect-error Native source types must be supported by AVA.
+runtime.source({ type: 'unsupported', options: {} });
 // @ts-expect-error Internal session ownership is not a mutable public field.
 runtime.sessions.add('ds_other');
 `,

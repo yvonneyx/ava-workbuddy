@@ -4,6 +4,7 @@ import { realpath, stat } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, extname, isAbsolute, resolve } from 'node:path';
 import { root, metadata } from './metadata.js';
+import { fileSourceType, type FileSourceType } from './contracts.js';
 
 // -----------------------------------------------------------------------------
 // 依赖定位与运行环境
@@ -48,16 +49,34 @@ export function checkEnvironment(
 // 本地文件边界
 // -----------------------------------------------------------------------------
 
-export async function sourcePath(path: string) {
+export const fileSourceTypes: Record<string, FileSourceType> = {
+  '.csv': 'csv-file',
+  '.json': 'json-file',
+  '.parquet': 'parquet',
+  '.xlsx': 'excel',
+  '.sqlite': 'sqlite',
+  '.sqlite3': 'sqlite',
+  '.db': 'sqlite',
+};
+
+export async function sourcePath(path: string, type?: FileSourceType) {
   if (!isAbsolute(path)) {
     throw new Error('Provide an absolute path to the local file supplied by the user.');
   }
-  if (!['.csv', '.xlsx'].includes(extname(path).toLowerCase())) {
-    throw new Error(`v${metadata.version} accepts local CSV and XLSX files only.`);
+  if (type !== undefined) {
+    fileSourceType.parse(type);
+  } else if (!fileSourceTypes[extname(path).toLowerCase()]) {
+    throw new Error('Cannot infer the source type. Provide a file source type explicitly.');
   }
   const resolved = await realpath(path);
-  if (!['.csv', '.xlsx'].includes(extname(resolved).toLowerCase())) {
-    throw new Error('The resolved source must also be a CSV or XLSX file.');
+  if (
+    !type &&
+    fileSourceTypes[extname(resolved).toLowerCase()] !==
+      fileSourceTypes[extname(path).toLowerCase()]
+  ) {
+    throw new Error(
+      'The resolved source must have the same file type; otherwise set type explicitly.',
+    );
   }
   if (!(await stat(resolved)).isFile()) {
     throw new Error('The source must be a regular file.');

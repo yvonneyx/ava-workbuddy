@@ -1,6 +1,19 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { access, copyFile, mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises';
+import {
+  access,
+  copyFile,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  stat,
+  writeFile,
+} from 'node:fs/promises';
+import { createServer } from 'node:http';
+import { once } from 'node:events';
+import { DatabaseSync } from 'node:sqlite';
+import { DuckDBInstance } from '@duckdb/node-api';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Client } from '@modelcontextprotocol/client';
@@ -36,6 +49,154 @@ async function call(client, name, args = {}) {
   assert(!response.isError, response.content?.map((item) => item.text).join('\n'));
   return response.structuredContent ?? JSON.parse(response.content[0].text);
 }
+
+// -----------------------------------------------------------------------------
+// 新增数据源：真实文件、内联数据、原生配置与远程下载
+// -----------------------------------------------------------------------------
+
+test(
+  'MCP loads JSON, Parquet, SQLite, inline CSV/JSON and authenticated HTTP sources',
+  { timeout: 180000 },
+  async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'ava-all-sources-'));
+    const connection = await connect();
+    const client = connection.client;
+    const json = join(directory, '数据.json');
+    const parquet = join(directory, 'data.parquet');
+    const sqlite = join(directory, 'data.sqlite3');
+    const remote = createServer(async (request, response) => {
+      if (request.headers.authorization !== 'Bearer test-secret') {
+        response.writeHead(401).end();
+        return;
+      }
+      const files = {
+        '/data': json,
+        '/data.parquet': parquet,
+        '/data.xlsx': join(root, 'tests/fixtures/销售 数据.xlsx'),
+      };
+      const file = files[new URL(request.url, 'http://localhost').pathname];
+      if (!file) {
+        response.writeHead(404).end();
+        return;
+      }
+      response.end(await readFile(file));
+    });
+    try {
+      await writeFile(json, JSON.stringify([{ value: 1 }, { value: 2 }]));
+      const database = new DatabaseSync(sqlite);
+      try {
+        database.exec('CREATE TABLE sales (value INTEGER); INSERT INTO sales VALUES (1), (2)');
+      } finally {
+        database.close();
+      }
+      const instance = await DuckDBInstance.create(':memory:');
+      const duckdb = await instance.connect();
+      try {
+        await duckdb.run(
+          `COPY (SELECT value FROM (VALUES (1), (2)) t(value)) TO '${parquet.replaceAll(
+            "'",
+            "''",
+          )}' (FORMAT PARQUET)`,
+        );
+      } finally {
+        duckdb.closeSync();
+        instance.closeSync();
+      }
+      remote.listen(0, '127.0.0.1');
+      await once(remote, 'listening');
+      const origin = `http://127.0.0.1:${remote.address().port}`;
+      const config = join(directory, 'source.json');
+      await writeFile(
+        config,
+        JSON.stringify({ type: 'json', options: { data: [{ value: 1 }, { value: 2 }] } }),
+        { mode: 0o600 },
+      );
+      const csv = join(directory, 'extensionless');
+      await writeFile(csv, 'value;category\n1;A\n2;B');
+      const inputs = [
+        { path: json },
+        { path: parquet },
+        { path: sqlite },
+        { config: { type: 'json', options: { data: [{ value: 1 }, { value: 2 }] } } },
+        { config: { type: 'csv', options: { csv: 'value\n1\n2' } } },
+        { config: { type: 'csv-file', options: { path: csv, options: { delim: ';' } } } },
+        { path: `@${config}` },
+        {
+          config: {
+            type: 'json-file',
+            options: {
+              path: `${origin}/data?token=signed-secret`,
+              headers: { Authorization: 'Bearer test-secret' },
+            },
+          },
+        },
+        {
+          config: {
+            type: 'parquet',
+            options: {
+              path: `${origin}/data.parquet`,
+              headers: { Authorization: 'Bearer test-secret' },
+            },
+          },
+        },
+      ];
+      for (const input of inputs) {
+        const { datasetId } = await call(client, 'ava_source', input);
+        try {
+          const schema = await call(client, 'ava_schema', { datasetId });
+          const table = schema.models[0].tableReference.table.replaceAll('"', '""');
+          const result = await call(client, 'ava_query', {
+            datasetId,
+            sql: `SELECT SUM(value) AS total FROM "${table}"`,
+          });
+          assert.equal(Number(result.data[0].total), 3);
+          if (input.config?.type === 'json-file') {
+            const report = await call(client, 'ava_artifact', {
+              output: join(directory, 'remote.html'),
+              title: 'Remote',
+              summary: 'Total is 3',
+              sections: [{ question: 'Total?', conclusion: '3', queryId: result.queryId }],
+            });
+            const evidence = await readFile(report.dataOutput, 'utf8');
+            assert(!evidence.includes(origin) && !evidence.includes('secret'));
+            assert.equal(JSON.parse(evidence).queries[0].source, 'json-file');
+          }
+        } finally {
+          await call(client, 'ava_dispose', { datasetId });
+        }
+      }
+      const excel = await call(client, 'ava_source', {
+        config: {
+          type: 'excel',
+          options: {
+            path: `${origin}/data.xlsx`,
+            headers: { Authorization: 'Bearer test-secret' },
+          },
+        },
+      });
+      await call(client, 'ava_dispose', excel);
+      const failed = await client.callTool({
+        name: 'ava_source',
+        arguments: {
+          config: {
+            type: 'json-file',
+            options: {
+              path: `${origin}/missing?token=private-token`,
+              headers: { Authorization: 'Bearer test-secret' },
+            },
+          },
+        },
+      });
+      assert.equal(failed.isError, true);
+      assert(failed.content[0].text.includes('404'));
+      assert(!failed.content[0].text.includes('private-token'));
+    } finally {
+      await client.close();
+      await new Promise((resolve) => remote.close(resolve));
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+);
 
 // -----------------------------------------------------------------------------
 // 完整链路：文件、查询、图表、报告与重启

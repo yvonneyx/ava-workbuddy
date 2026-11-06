@@ -9,6 +9,8 @@ export type {
   ChartSpec,
   CleanupReport,
   SourceResult,
+  SourceConfig,
+  FileSourceType,
   SchemaResult,
   QueryResult,
   ExecutedQueryResult,

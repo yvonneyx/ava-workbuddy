@@ -2,6 +2,11 @@
 
 ## 未发布
 
+- `ava_source` / `Runtime.source()` 支持 AVA 4.0.0 全部 14 种数据源：本地及 HTTP(S) 文件、内联
+  CSV/JSON/text、MySQL/PostgreSQL/SQLite/MongoDB/ClickHouse/Supabase、飞书/Lark 多维表格。保留原
+  `path` 调用，新增原生 `config`、`@配置文件` 与文件格式覆盖 `type`。配置通过 stdin 传入，报告来源只
+  保存类型或本地文件名，加载错误移除已知连接凭据。查询使用数据源默认引擎的 SQL 方言。
+
 - 分析流程迁入 MCP 工具描述，初始化 `instructions` 提供服务导航。删除独立 Skill、专家的 Skill 依赖和
   Skill 分发包；当前只构建运行 TGZ、连接器 ZIP 和专家 ZIP。工具参数、原生图表形状及证据绑定统一由
   MCP schema 说明。

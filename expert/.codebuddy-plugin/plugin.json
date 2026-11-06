@@ -1,7 +1,7 @@
 {
   "name": "ava-workbuddy-assistant",
   "version": "0.2.1",
-  "description": "Analyze local CSV and Excel files with AVA and create traceable reports.",
+  "description": "Analyze files, databases, inline data and Feishu Bitable with AVA and create traceable reports.",
   "author": {
     "name": "yvonneyx",
     "email": "zhuyuxin0627@gmail.com"
@@ -18,8 +18,8 @@
     "en": "Data Analyst"
   },
   "displayDescription": {
-    "zh": "分析本地表格，拆解指标变化、核对计算口径，交付结论、结果表与交互图表，生成可追溯的分析报告。",
-    "en": "Analyze local CSV and Excel files, explain metric changes, and check metric definitions. Deliver findings, result tables, interactive charts and a traceable report."
+    "zh": "分析文件、数据库和飞书表格，拆解指标变化、核对计算口径，交付结论、结果表与图表及可追溯报告。",
+    "en": "Analyze files, databases, inline data and Feishu Bitable, explain metric changes, and check metric definitions. Deliver findings, result tables, interactive charts and a traceable report."
   },
   "avatar": "avatars/expert.png",
   "categoryId": "04-DataAI",

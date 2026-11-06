@@ -30,16 +30,16 @@ npm run package
 
 一个实例管理自己创建的会话。方法均返回 Promise；同一会话的并发操作会被拒绝。
 
-| 方法                               | 返回与约束                                                                                     |
-| ---------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `source(path)`                     | `{ datasetId }`；绝对路径、现存本地 CSV/XLSX，文件只读                                         |
-| `schema(datasetId)`                | `SchemaResult`；真实表、字段、类型及查询语言                                                   |
-| `query(datasetId, sql, maxRows?)`  | `ExecutedQueryResult`，含 `queryId`；只读 SQL，最多 512 KiB；`maxRows` 为 1–10000，默认 200    |
-| `semantic(datasetId, definition?)` | `SemanticDefinition`；省略时读取，传入对象时完整替换，不自动改写 SQL                           |
-| `viz(spec, output)`                | `{ output }`；`spec` 包含 `chartType` 和 `config`，输出必须是新 `.html` 绝对路径，父目录已存在 |
-| `artifact(input)`                  | 从查询证据生成 HTML 和同名 JSON；返回文件路径、章节数、查询数与 `chartErrors`，详见下文        |
-| `dispose(datasetId)`               | `{ datasetId, disposed: true }`；释放当前实例拥有的空闲会话                                    |
-| `close()`                          | `CleanupReport`；拒绝新任务、等待已接受任务、释放确定空闲的会话；重复调用复用同一结果          |
+| 方法                               | 返回与约束                                                                                                     |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `source(input, type?)`             | `{ datasetId }`；本地绝对路径、HTTP(S)、飞书 URL、`@配置文件` 或原生 `SourceConfig`；`type` 只用于文件路径/URL |
+| `schema(datasetId)`                | `SchemaResult`；真实表、字段、类型及查询语言                                                                   |
+| `query(datasetId, sql, maxRows?)`  | `ExecutedQueryResult`，含 `queryId`；只读 SQL，最多 512 KiB；`maxRows` 为 1–10000，默认 200                    |
+| `semantic(datasetId, definition?)` | `SemanticDefinition`；省略时读取，传入对象时完整替换，不自动改写 SQL                                           |
+| `viz(spec, output)`                | `{ output }`；`spec` 包含 `chartType` 和 `config`，输出必须是新 `.html` 绝对路径，父目录已存在                 |
+| `artifact(input)`                  | 从查询证据生成 HTML 和同名 JSON；返回文件路径、章节数、查询数与 `chartErrors`，详见下文                        |
+| `dispose(datasetId)`               | `{ datasetId, disposed: true }`；释放当前实例拥有的空闲会话                                                    |
+| `close()`                          | `CleanupReport`；拒绝新任务、等待已接受任务、释放确定空闲的会话；重复调用复用同一结果                          |
 
 `QueryResult.data` 为 `Record<string, unknown>[]`。字段来自用户数据，取值前检查或转换类型；不要假定
 数字一定以 JavaScript number 返回。`truncated === true` 时结果不完整，需修改聚合或限制后再分析。
@@ -63,6 +63,61 @@ try {
 
 示例仅打印查询结果，假设表名为 `data` 且有 `revenue` 列。业务文件应先读取 `schema`，按真实字段和确认
 的口径查询。
+
+### 数据源配置
+
+支持固定依赖 AVA 4.0.0 的全部数据源类型。`SourceConfig` 为 `{ type, options }`；具体选项由 AVA 校验
+。本地文件路径必须是现存普通文件的绝对路径，配置内也遵循此规则。字符串路径保留原调用方式：
+
+```ts
+await runtime.source('/data/sales.json');
+await runtime.source('https://example.com/download', 'csv-file');
+await runtime.source('@/private/source.json');
+await runtime.source({ type: 'json', options: { data: [{ region: 'East', revenue: 10 }] } });
+await runtime.source({
+  type: 'postgresql',
+  options: {
+    host: 'localhost',
+    database: 'sales',
+    user: 'reader',
+    password: process.env.DB_PASSWORD,
+  },
+});
+```
+
+`@文件` 读取 JSON 配置，普通 `.json` 文件读取数据；不能给配置再传 `type`。文件格式覆盖支持
+`csv-file`、`json-file`、`parquet`、`excel`、`sqlite`，可用于无扩展名文件或 URL。
+
+| `type`           | `options` 示例 / 约束                                                                  |
+| ---------------- | -------------------------------------------------------------------------------------- |
+| `csv-file`       | `{path, headers?, options?}`；本地或 HTTP(S)，`options` 为 DuckDB CSV 读取选项         |
+| `json-file`      | `{path, headers?, options?}`；本地或 HTTP(S)，`options` 为 JSON 读取选项               |
+| `parquet`        | `{path, headers?}`；本地或 HTTP(S)                                                     |
+| `excel`          | `{path, headers?, sheets?}`；本地或 HTTP(S)，`sheets: [{sheet, range?, header?, ...}]` |
+| `sqlite`         | `{path}`；仅本地，自动识别 `.sqlite`、`.sqlite3`、`.db`                                |
+| `csv`            | `{csv: "region,revenue\nEast,10", options?}`                                           |
+| `json`           | `{data: [{region: "East", revenue: 10}], options?}`                                    |
+| `text`           | `{text: "..."}`；需配置 `OPENAI_API_KEY`，文本会发送到模型服务                         |
+| `mysql`          | `{host, database, port?, user?, password?, ssh?: {host,user,port?,password?}}`         |
+| `postgresql`     | MySQL 同形连接字段，另支持 `schema`                                                    |
+| `mongodb`        | `{database, connection?}` 或 `{database, host?, port?, user?, password?, ...}`         |
+| `clickhouse`     | `{url 或 host, database, username?, password?, ...}`，保留原生客户端选项               |
+| `supabase`       | `{accessToken, projectRef}`；token 须具备 Management API 权限                          |
+| `feishu-bitable` | `{url, appId?, appSecret?}` 或 `{appToken, tableId, appId?, appSecret?}`               |
+
+使用 MCP 时，传 `{path, type?}` 或 `{config: {type, options}}`，两者互斥。配置通过 stdin 传给 AVA，
+不写入本项目临时配置文件或命令行参数；报告来源只保存本地文件名或数据源类型，保留最近查询证据的规则不
+变。结果与 SQL 本身仍是报告内容，勿在查询中写入凭据。
+
+AVA 自动为 ClickHouse、Supabase 选择远程引擎，其余使用 DuckDB。`query()` 的 `sql` 遵循
+`schema().language` 返回的方言；此接入使用 AVA 默认引擎，不提供 Python/JavaScript 引擎切换。数据库需
+相应 DuckDB 扩展和只读凭据。完整上游选项见
+[AVA 数据源指南](https://ava.antv.vision/zh/documentation/data/sources/)。
+
+飞书/Lark `/base/`、`/wiki/` 链接自动识别为多维表格。凭据由配置、环境变量 `AVA_FEISHU_APP_ID` /
+`AVA_FEISHU_APP_SECRET`、`~/.ava/feishu.json` 依次解析；MCP 不会交互式绑定。 Wiki 需额外的 Wiki 读取
+权限及空间成员权限。整张表暴露为 `data`，忽略 `view` 筛选；按实际 schema 自行在 SQL 中过滤
+。Docx/Sheets 和承载这些类型的 Wiki 节点不支持。
 
 ### 报告与证据保存
 

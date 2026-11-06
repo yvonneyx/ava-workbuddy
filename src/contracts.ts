@@ -1,6 +1,40 @@
 import { z } from 'zod/v4';
 
 // -----------------------------------------------------------------------------
+// 数据源输入；具体 options 由固定版本的 AVA 校验
+// -----------------------------------------------------------------------------
+
+export const fileSourceType = z.enum(['csv-file', 'json-file', 'parquet', 'excel', 'sqlite']);
+export const sourceConfig = z
+  .object({
+    type: z.enum([
+      ...fileSourceType.options,
+      'csv',
+      'json',
+      'text',
+      'mysql',
+      'postgresql',
+      'mongodb',
+      'clickhouse',
+      'supabase',
+      'feishu-bitable',
+    ]),
+    options: z
+      .record(z.string(), z.unknown())
+      .describe(
+        'Native AVA options: file types use path (absolute local path or HTTP(S), ' +
+          'SQLite local only), optional headers; csv-file/json-file accept nested options, ' +
+          'excel accepts sheets. csv: {csv, options?}; json: {data: object[], options?}; ' +
+          'text: {text}. mysql/postgresql: {host,database,port?,user?,password?,ssh?}, ' +
+          'postgresql also accepts schema. mongodb: {database,connection?} or host/port/user/password. ' +
+          'clickhouse: {url or host,database,username?,password?,...native client options}; ' +
+          'supabase: {accessToken,projectRef}; feishu-bitable: {url} or {appToken,tableId}, ' +
+          'with optional appId/appSecret (otherwise resolved by AVA).',
+      ),
+  })
+  .strict();
+
+// -----------------------------------------------------------------------------
 // AVA 响应与图表协议
 // -----------------------------------------------------------------------------
 
@@ -50,6 +84,8 @@ export const chartSpec = z
 // -----------------------------------------------------------------------------
 
 export type SourceResult = z.infer<typeof sourceResult>;
+export type SourceConfig = z.infer<typeof sourceConfig>;
+export type FileSourceType = z.infer<typeof fileSourceType>;
 export type SchemaResult = z.infer<typeof schemaResult>;
 export type QueryResult = z.infer<typeof queryResult>;
 export type ExecutedQueryResult = QueryResult & { queryId: string };

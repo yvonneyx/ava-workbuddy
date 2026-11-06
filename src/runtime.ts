@@ -1,9 +1,10 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { basename, join } from 'node:path';
+import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod/v4';
-import { AVACommandError, runCommand, outputPath, sourcePath } from './ava.js';
+import { AVACommandError, runCommand, outputPath } from './ava.js';
+import { prepareSource, sourceError } from './source.js';
 import {
   sourceResult,
   schemaResult,
@@ -15,6 +16,8 @@ import {
   type CleanupReport,
   type SemanticDefinition,
   type SourceResult,
+  type SourceConfig,
+  type FileSourceType,
   type SchemaResult,
   type ExecutedQueryResult,
 } from './contracts.js';
@@ -101,12 +104,16 @@ export class Runtime {
   // 数据加载与查询证据
   // -----------------------------------------------------------------------------
 
-  source(path: string): Promise<SourceResult> {
+  source(input: string | SourceConfig, type?: FileSourceType): Promise<SourceResult> {
     return this.#run(async () => {
-      const resolved = await sourcePath(path);
-      const result = await this.#execute(['source', resolved], sourceResult);
-      this.#sources.set(result.datasetId, basename(resolved));
-      return result;
+      const { config, label } = await prepareSource(input, type);
+      try {
+        const result = await this.#execute(['source', '-'], sourceResult, JSON.stringify(config));
+        this.#sources.set(result.datasetId, label);
+        return result;
+      } catch (error) {
+        throw sourceError(error, config);
+      }
     });
   }
 

@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AVACommandError, checkEnvironment, Runtime } from '../lib/index.js';
 import { outputPath, sourcePath } from '../lib/ava.js';
+import { prepareSource } from '../lib/source.js';
 import { root } from '../lib/metadata.js';
 import { validate } from '../scripts/validate.mjs';
 import { createServer } from '../lib/server.js';
@@ -49,10 +50,10 @@ test('reject unsupported runtimes and platforms before creating sessions', () =>
   assert.equal(checkEnvironment('24.0.0', 'darwin').ready, true);
 });
 
-test('accept only absolute local file inputs and HTML destinations', async () => {
+test('validate absolute local files, symlink formats and HTML destinations', async () => {
   await assert.rejects(sourcePath('sales.csv'), /absolute/);
   await assert.rejects(sourcePath('https://example.com/sales.csv'), /absolute/);
-  await assert.rejects(sourcePath('/tmp/credentials.txt'), /CSV and XLSX/);
+  await assert.rejects(sourcePath('/tmp/credentials.txt'), /source type/);
   assert.throws(() => outputPath('chart.html'), /absolute/);
   assert.throws(() => outputPath('/tmp/file.js'), /\.html/);
   const directory = await mkdtemp(join(tmpdir(), 'ava-workbuddy-unit-'));
@@ -70,6 +71,214 @@ test('accept only absolute local file inputs and HTML destinations', async () =>
     await assert.rejects(sourcePath(folder), /regular file/);
   } finally {
     await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('infer all AVA file formats and allow explicit formats for extensionless files', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'ava-source-files-'));
+  try {
+    for (const [extension, type] of [
+      ['csv', 'csv-file'],
+      ['json', 'json-file'],
+      ['parquet', 'parquet'],
+      ['xlsx', 'excel'],
+      ['sqlite', 'sqlite'],
+      ['sqlite3', 'sqlite'],
+      ['db', 'sqlite'],
+    ]) {
+      const path = join(directory, `数据.${extension}`);
+      await writeFile(path, 'fixture');
+      const prepared = await prepareSource(path);
+      assert.equal(prepared.config.type, type);
+      assert.equal(prepared.label, `数据.${extension}`);
+    }
+    const path = join(directory, 'no-extension');
+    await writeFile(path, 'x\n1');
+    assert.equal((await prepareSource(path, 'csv-file')).config.type, 'csv-file');
+    await assert.rejects(
+      prepareSource({ type: 'csv-file', options: { path: 'relative.csv' } }),
+      /absolute/,
+    );
+    await assert.rejects(
+      prepareSource({ type: 'sqlite', options: { path: 'https://example.com/a.db' } }),
+      /SQLite/,
+    );
+    await assert.rejects(prepareSource({ type: 'json-file', options: {} }), /path/);
+    await assert.rejects(prepareSource('https://example.com/data'), /source type/);
+    assert.equal(
+      (await prepareSource('https://example.com/data', 'json-file')).config.type,
+      'json-file',
+    );
+    for (const host of ['my.feishu.cn', 'my.larksuite.com']) {
+      for (const kind of ['base', 'wiki']) {
+        const prepared = await prepareSource(
+          `https://${host}/${kind}/token?table=tbl&view=ignored`,
+        );
+        assert.equal(prepared.config.type, 'feishu-bitable');
+        assert.equal(prepared.label, 'feishu-bitable');
+      }
+      await assert.rejects(prepareSource(`https://${host}/docx/token`), /Bitable/);
+      await assert.rejects(prepareSource(`https://${host}/base/token`, 'csv-file'), /Bitable/);
+    }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('all 14 native source types preserve options and send credentials only via stdin', async () => {
+  const configs = [
+    {
+      type: 'csv-file',
+      options: { path: 'https://example.com/data.csv', options: { delim: ';' } },
+    },
+    {
+      type: 'json-file',
+      options: {
+        path: 'https://example.com/data.json',
+        headers: { Authorization: 'Bearer secret' },
+      },
+    },
+    { type: 'parquet', options: { path: 'https://example.com/data.parquet' } },
+    {
+      type: 'excel',
+      options: {
+        path: 'https://example.com/a.xlsx',
+        sheets: [{ sheet: 'Sheet1', range: 'A1:B3' }],
+      },
+    },
+    { type: 'sqlite', options: { path: file } },
+    { type: 'csv', options: { csv: 'x\n1', options: { all_varchar: true } } },
+    { type: 'json', options: { data: [{ x: 1 }] } },
+    { type: 'text', options: { text: 'Revenue is 10.' } },
+    {
+      type: 'mysql',
+      options: {
+        host: 'localhost',
+        database: 'sales',
+        password: '$(secret)',
+        ssh: { host: 'jump', user: 'reader' },
+      },
+    },
+    { type: 'postgresql', options: { host: 'localhost', database: 'sales', schema: 'public' } },
+    {
+      type: 'mongodb',
+      options: { database: 'sales', connection: 'mongodb://reader:secret@localhost' },
+    },
+    {
+      type: 'clickhouse',
+      options: {
+        url: 'http://localhost:8123',
+        database: 'sales',
+        clickhouse_settings: { max_threads: 2 },
+      },
+    },
+    { type: 'supabase', options: { projectRef: 'project', accessToken: 'secret' } },
+    {
+      type: 'feishu-bitable',
+      options: {
+        url: 'https://my.feishu.cn/wiki/node?table=tbl',
+        appId: 'app',
+        appSecret: 'secret',
+      },
+    },
+  ];
+  for (const config of configs) {
+    const runtime = new StubRuntime();
+    const before = structuredClone(config);
+    try {
+      assert.deepEqual(await runtime.source(config), { datasetId: id });
+      assert.deepEqual(runtime.calls[0].args, ['source', '-']);
+      const sent = JSON.parse(runtime.calls[0].input);
+      assert.equal(sent.type, config.type);
+      assert.deepEqual(sent.options, {
+        ...config.options,
+        ...(config.type === 'sqlite' ? { path: await sourcePath(file) } : {}),
+      });
+      assert.deepEqual(config, before);
+    } finally {
+      await runtime.close();
+    }
+  }
+});
+
+test('config files are distinct from JSON data and cannot be combined with type', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'ava-source-config-'));
+  const runtime = new StubRuntime();
+  try {
+    const path = join(directory, 'source.json');
+    const config = { type: 'json', options: { data: [{ x: 1 }] } };
+    await writeFile(path, JSON.stringify(config), { mode: 0o600 });
+    assert.equal((await prepareSource(path)).config.type, 'json-file');
+    await runtime.source(`@${path}`);
+    assert.deepEqual(JSON.parse(runtime.calls[0].input), config);
+    await assert.rejects(runtime.source(`@${path}`, 'json-file'), /cannot be combined/);
+    await assert.rejects(runtime.source(config, 'json-file'), /cannot be combined/);
+    await assert.rejects(runtime.source({ type: 'unknown', options: {} }));
+    await writeFile(path, '{invalid');
+    await assert.rejects(runtime.source(`@${path}`), SyntaxError);
+    assert.equal(runtime.calls.length, 1);
+  } finally {
+    await runtime.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('source errors redact connection credentials while preserving uncertain outcomes', async () => {
+  const runtime = new StubRuntime();
+  const url = 'https://reader:password@example.com/data.csv?token=signed';
+  runtime.command = async () => {
+    throw new AVACommandError(`Failed to fetch ${url}: Bearer header-secret password signed`, true);
+  };
+  await assert.rejects(
+    runtime.source({
+      type: 'csv-file',
+      options: {
+        path: url,
+        headers: { Authorization: 'Bearer header-secret' },
+      },
+    }),
+    (error) =>
+      error instanceof AVACommandError &&
+      error.uncertain &&
+      !error.message.includes(url) &&
+      !error.message.includes('header-secret') &&
+      !error.message.includes('password') &&
+      !error.message.includes('signed'),
+  );
+  assert.deepEqual(runtime.calls[0].args, ['source', '-']);
+});
+
+test('MCP exposes native source configs, validates exclusive inputs and declares remote access', async () => {
+  const runtime = new StubRuntime();
+  const connection = createServer(runtime);
+  const client = new Client({ name: 'sources-test', version: '1.0.0' });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  await Promise.all([connection.server.connect(serverTransport), client.connect(clientTransport)]);
+  try {
+    const tools = (await client.listTools()).tools;
+    const source = tools.find(({ name }) => name === 'ava_source');
+    assert.equal(source.annotations.openWorldHint, true);
+    assert.equal(tools.find(({ name }) => name === 'ava_query').annotations.openWorldHint, true);
+    assert.equal(tools.find(({ name }) => name === 'ava_schema').annotations.openWorldHint, true);
+    for (const args of [
+      {},
+      { path: file, config: { type: 'json', options: { data: [] } } },
+      { config: { type: 'json', options: { data: [] } }, type: 'csv-file' },
+    ]) {
+      assert.equal((await client.callTool({ name: 'ava_source', arguments: args })).isError, true);
+    }
+    assert.equal(runtime.calls.length, 0);
+    for (const args of [
+      { path: file },
+      { path: 'https://example.com/data', type: 'csv-file' },
+      { config: { type: 'postgresql', options: { host: 'localhost', database: 'sales' } } },
+    ]) {
+      assert(!(await client.callTool({ name: 'ava_source', arguments: args })).isError);
+    }
+    assert.equal(runtime.calls.length, 3);
+  } finally {
+    await connection.close();
+    await client.close();
   }
 });
 
