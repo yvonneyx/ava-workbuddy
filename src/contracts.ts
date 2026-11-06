@@ -31,8 +31,16 @@ export const chartSpec = z
     config: z
       .record(z.string(), z.unknown())
       .describe(
-        'Native AVA/GPT-Vis options. Use native data fields and numeric values. ' +
-          'AVA sets config.type from chartType; no local chart adapter is applied.',
+        'Native AVA/GPT-Vis options; AVA sets type from chartType. Use SQL aliases ' +
+          'and casts to produce native fields and numeric values; put units in ' +
+          'titles or axis labels. Native data shapes (not an exhaustive type list): ' +
+          'bar/column: data=[{category,value,group?}]; pie: data=[{category,value}], ' +
+          'non-negative with a positive total; line/area: data=[{time,value,group?}], ' +
+          'ordered by time; scatter: data=[{x,y,group?}]; histogram: data=number[]; ' +
+          'boxplot/violin: data=[{category,value}], multiple observations per ' +
+          'category; dual-axes: categories and series of native series objects; ' +
+          'liquid: percent between 0 and 1. Standalone viz includes data here; ' +
+          'artifact binds data from query evidence as described on its chart field.',
       ),
   })
   .strict();

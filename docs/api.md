@@ -73,8 +73,8 @@ try {
 - 需要保留的证据须在关闭 Runtime 或移出缓存前生成报告或导出。保存的文件不能恢复有效 `queryId`；新
   Runtime 需重新查询。
 - 图表使用 `{ chartType, config }`，从查询证据绑定数据；特殊数据形状使用 `chartConfigField`。
-  `ArtifactInput` 字段与校验以[输入 schema](../src/artifact.ts) 为准，数据形状见
-  [图表参考](../skills/ava/references/charts.md)。
+  `ArtifactInput` 字段与校验以[输入 schema](../src/artifact.ts) 为准，原生数据形状由
+  [共享图表 schema](../src/contracts.ts) 说明。
 - 图表失败时报告仍保留表格和 SQL，错误见 `chartErrors`。工具不核验结论文案； `chartPreviewVerified`
   返回 false，宿主需另行验证图表预览。
 

@@ -41,8 +41,8 @@ define arguments and execution limits.
 ## Deliver and continue
 
 - Match the user's requested output. Give a direct answer for a simple question, `ava_viz` for a
-  standalone chart, and `ava_artifact` for a report. Read [native chart data](references/charts.md)
-  only when plotting; use AVA's config without adding a separate chart grammar.
+  standalone chart, and `ava_artifact` for a report. Use the native chart data shapes described in
+  the tools' input schemas.
 - Keep each question with its returned `queryId`. For follow-up reports, retain the earlier
   questions and evidence needed to understand the answer. Artifact saves SQL and results; avoid
   exporting duplicate files unless requested.

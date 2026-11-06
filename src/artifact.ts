@@ -55,7 +55,10 @@ export const artifactInput = z
               .describe(
                 'Native AVA chart; saved query rows supply config.data by default. ' +
                   'Do not supply config.data, categories, series or percent inline. ' +
-                  'Use SQL aliases and casts to produce native fields and numbers.',
+                  'For example, a column chart can use a query returning ' +
+                  'month AS category, CAST(SUM(revenue) AS DOUBLE) AS value ' +
+                  'grouped and ordered by month, with chart={chartType:"column", ' +
+                  'config:{axisYTitle:"Revenue (USD)"}}.',
               ),
             chartConfigField: text
               .max(200)

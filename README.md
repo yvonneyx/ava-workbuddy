@@ -82,7 +82,7 @@ node lib/cli.js check
 src/          TypeScript 运行时、MCP、CLI 和报告
 public/       HTML 报告模板、图标和头像的唯一维护源
 tests/        单元与集成测试、demo helper 和 fixtures
-skills/ava/   分析流程与参考资料，唯一维护源
+skills/ava/   分析与交付流程，唯一维护源
 connector/    连接器元信息和 MCP 配置
 expert/       专家身份、表达偏好和展示信息
 scripts/      配置校验、打包和安装验证

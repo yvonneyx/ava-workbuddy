@@ -74,7 +74,7 @@ export async function validate() {
   }
 
   // -----------------------------------------------------------------------------
-  // Skill 引用与头像资源
+  // Skill 元信息与静态资源
   // -----------------------------------------------------------------------------
 
   for (const field of [
@@ -90,9 +90,6 @@ export async function validate() {
     assert(skillFrontmatter[field], `Missing Skill ${field}`);
   }
   assert.equal(skillFrontmatter.version, metadata.version);
-  for (const match of skill.matchAll(/\]\((references\/[^)]+)\)/g)) {
-    await access(join(root, 'skills/ava', match[1]));
-  }
   await access(join(root, 'public/artifact.html'));
   await access(join(root, 'public/icon.svg'));
   const avatar = await readFile(join(root, 'public', plugin.avatar));

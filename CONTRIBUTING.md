@@ -30,8 +30,8 @@ npm run test:integration
   能自动重试或强制释放。
 - 修改行为时补充能复现问题的测试。协议和安装方式变化必须跑集成测试与真实打包安装测试。
 - `expert/` 定义身份、表达偏好和展示信息，不重复分析步骤和工具参数。
-- MCP 的工具描述和输入 schema 维护调用契约；`skills/ava/` 只补充分析与交付方法。仅将原生图表数据形状
-  放入按需读取的参考文件，不重复维护工具手册。
+- 工具契约与原生图表数据形状统一写在 MCP 描述和输入 schema 中。
+- `skills/ava/` 只定义分析与交付流程，不另写工具或图表手册。
 - `connector/` 只维护连接配置和展示信息；`src/` 实现工具契约、执行与校验，不承担专家角色和交付文案。
 - `public/` 统一维护报告模板、图标和头像。生成报告时内嵌图标；打包时将资源复制到 WorkBuddy 约定的目
   录，不维护重复副本。
@@ -57,7 +57,6 @@ npm run test:package
 - [WorkBuddy 技能规范](https://open.workbuddy.cn/docs/skill)
 - [Agent Skills 编写实践](https://agentskills.io/skill-creation/best-practices)
 
-保留 WorkBuddy 市场所需的 frontmatter。Skill 按实际任务补充流程与按需参考，避免通用教程和重复工具说
-明。
+保留 WorkBuddy 市场所需的 frontmatter。Skill 按实际任务补充分析流程，避免通用教程和重复工具说明。
 
 发版流程见 [发布指南](docs/publishing.md)。GitHub 发版与 WorkBuddy 平台上架分别进行。
