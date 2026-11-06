@@ -3,8 +3,7 @@ import { basename, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod/v4';
-import { AVACommandError, runCommand } from './command.js';
-import { outputPath, sourcePath } from './paths.js';
+import { AVACommandError, runCommand, outputPath, sourcePath } from './ava.js';
 import {
   sourceResult, schemaResult, queryResult, semanticResult, vizResult, disposeResult,
   type ChartSpec, type CleanupReport, type SemanticDefinition, type SourceResult,

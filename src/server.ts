@@ -2,7 +2,7 @@ import { McpServer, type ToolAnnotations } from '@modelcontextprotocol/server';
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio';
 import { z } from 'zod/v4';
 import { Runtime } from './runtime.js';
-import { checkEnvironment } from './environment.js';
+import { checkEnvironment } from './ava.js';
 import { metadata } from './metadata.js';
 import { runDemo } from './demo.js';
 import { artifactInput } from './artifact.js';

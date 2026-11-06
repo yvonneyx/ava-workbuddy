@@ -2,7 +2,7 @@ import { mkdtemp, open, readFile, rm } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { z } from 'zod/v4';
-import { outputPath } from './paths.js';
+import { outputPath } from './ava.js';
 import type { ChartSpec, QueryResult } from './contracts.js';
 
 const text = z.string().trim().min(1).max(20000);

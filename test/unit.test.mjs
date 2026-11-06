@@ -5,7 +5,7 @@ import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AVACommandError, checkEnvironment, Runtime } from '../lib/index.js';
-import { outputPath, sourcePath } from '../lib/paths.js';
+import { outputPath, sourcePath } from '../lib/ava.js';
 import { root } from '../lib/metadata.js';
 import { validate } from '../scripts/validate.mjs';
 import { createServer } from '../lib/server.js';

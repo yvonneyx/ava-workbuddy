@@ -3,7 +3,7 @@ import { copyFile, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs
 import { isAbsolute, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { root } from './metadata.js';
-import { checkEnvironment } from './environment.js';
+import { checkEnvironment } from './ava.js';
 import { Runtime } from './runtime.js';
 
 export async function runDemo(directory?: string) {
