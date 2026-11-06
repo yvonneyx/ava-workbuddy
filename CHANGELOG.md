@@ -2,6 +2,8 @@
 
 ## 未发布
 
+- 固定品牌 Logo 归入模板资源，生成 HTML 时内嵌；报告 JSON 不再包含 `brandLogo`。
+
 - 专家标识统一为 `ava-data-analyst`，展示名为「AVA 数据分析师 / AVA Data Analyst」；同步
   Agent 文件和专家包内目录。
 

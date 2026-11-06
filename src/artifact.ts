@@ -256,17 +256,18 @@ export async function createArtifact(
 
     // 只替换一个 JSON 数据槽；正文由浏览器通过文本节点绑定。
     const { output, ...fields } = report;
-    // 资源在生成时内嵌，报告离开仓库后仍可独立打开。
-    const brandLogo = await readFile(new URL('../public/icon.svg', import.meta.url));
     const payload = {
       ...fields,
-      brandLogo: `data:image/svg+xml;base64,${brandLogo.toString('base64')}`,
       generatedAt: new Date().toISOString(),
       queries: [...evidence.values()],
       charts,
       chartErrors,
     };
-    const template = await readFile(new URL('../public/artifact.html', import.meta.url), 'utf8');
+    // 模板资源在生成时内嵌，报告离开仓库后仍可独立打开。
+    const logo = await readFile(new URL('../public/icon.svg', import.meta.url));
+    const template = (
+      await readFile(new URL('../public/artifact.html', import.meta.url), 'utf8')
+    ).replace('src="icon.svg"', () => `src="data:image/svg+xml;base64,${logo.toString('base64')}"`);
     const slot = '<!-- ARTIFACT_DATA -->';
     if (template.split(slot).length !== 2) {
       throw new Error('Artifact template must contain exactly one ARTIFACT_DATA slot.');

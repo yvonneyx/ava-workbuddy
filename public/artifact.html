@@ -709,7 +709,7 @@
       <footer>
         <span>Powered by</span>
         <span class="antv-brand">
-          <img id="brand-logo" alt="" width="14" height="12" />
+          <img src="icon.svg" alt="" width="14" height="12" />
           <span>AntV</span>
         </span>
       </footer>
@@ -769,7 +769,6 @@
       // -----------------------------------------------------------------------------
 
       const report = JSON.parse(document.getElementById('artifact-data').textContent);
-      document.getElementById('brand-logo').src = report.brandLogo;
       const queries = new Map(report.queries.map((query) => [query.queryId, query]));
       const format = (value) =>
         value == null

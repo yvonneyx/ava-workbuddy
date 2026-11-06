@@ -1049,9 +1049,15 @@ test('different report fields use byte-identical templates with a single JSON da
       const html = await readFile(artifact.output, 'utf8');
       const payload = JSON.parse(await readFile(artifact.dataOutput, 'utf8'));
       const logo = await readFile(join(root, 'public/icon.svg'));
-      assert.equal(payload.brandLogo, `data:image/svg+xml;base64,${logo.toString('base64')}`);
+      const logoSource = `data:image/svg+xml;base64,${logo.toString('base64')}`;
+      assert(!Object.hasOwn(payload, 'brandLogo'));
+      const embedded = JSON.parse(
+        html.match(/<script id="artifact-data" type="application\/json">(.*?)<\/script>/s)[1],
+      );
+      assert.deepEqual(embedded, payload);
+      assert(html.includes(`src="${logoSource}"`));
       assert.equal(
-        html.replace(
+        html.replace(`src="${logoSource}"`, 'src="icon.svg"').replace(
           /<script id="artifact-data" type="application\/json">.*?<\/script>/s,
           '<!-- ARTIFACT_DATA -->',
         ),
