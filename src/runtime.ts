@@ -13,7 +13,6 @@ import { createArtifact, type ArtifactInput, type QueryEvidence } from './artifa
 
 /** One owner for a set of local AVA sessions. Always await close() in a finally block. */
 export class Runtime {
-  #sessions = new Set<string>();
   #sources = new Map<string, string>();
   #queries = new Map<string, QueryEvidence>();
   #busy = new Set<string>();
@@ -44,7 +43,7 @@ export class Runtime {
 
   #session<T>(id: string, operation: () => Promise<T>): Promise<T> {
     return this.#run(async () => {
-      if (!this.#sessions.has(id)) throw new Error('This dataset is not owned by this MCP connection. Load the source again.');
+      if (!this.#sources.has(id)) throw new Error('This dataset is not owned by this MCP connection. Load the source again.');
       if (this.#uncertain.has(id)) throw new Error('A previous operation has an uncertain outcome. Do not retry or dispose it automatically; inspect the task first.');
       if (this.#busy.has(id)) throw new Error('A command is already running for this dataset. Wait for its result.');
       this.#busy.add(id);
@@ -60,7 +59,6 @@ export class Runtime {
     return this.#run(async () => {
       const resolved = await sourcePath(path);
       const result = await this.#execute(['source', resolved], sourceResult);
-      this.#sessions.add(result.datasetId);
       this.#sources.set(result.datasetId, basename(resolved));
       return result;
     });
@@ -111,7 +109,6 @@ export class Runtime {
   dispose(id: string) {
     return this.#session(id, async () => {
       const result = await this.#execute(['dispose', id], disposeResult);
-      this.#sessions.delete(id);
       this.#sources.delete(id);
       return result;
     });
@@ -122,18 +119,17 @@ export class Runtime {
     this.#cleanup ??= Promise.resolve().then(async () => {
       await Promise.allSettled([...this.#pending]);
       const report: CleanupReport = { disposed: [], retained: [], errors: [] };
-      for (const id of this.#sessions) {
+      for (const id of this.#sources.keys()) {
         if (this.#uncertain.has(id)) continue;
         try {
           await this.#execute(['dispose', id], disposeResult);
-          this.#sessions.delete(id);
           this.#sources.delete(id);
           report.disposed.push(id);
         } catch (error) {
           report.errors.push({ datasetId: id, message: error instanceof Error ? error.message : String(error) });
         }
       }
-      report.retained = [...this.#sessions];
+      report.retained = [...this.#sources.keys()];
       this.#queries.clear();
       return report;
     });

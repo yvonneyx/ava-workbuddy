@@ -25,12 +25,10 @@
     "examples",
     "templates",
     "skills",
-    "docs",
+    "docs/api.md",
     "LICENSE",
     "NOTICE",
     "README.md",
-    "CONTRIBUTING.md",
-    "CHANGELOG.md",
     "npm-shrinkwrap.json"
   ],
   "scripts": {

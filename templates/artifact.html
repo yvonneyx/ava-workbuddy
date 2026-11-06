@@ -29,7 +29,6 @@
     .metric-label { color:#666666; font-size:11px; }
     .metric-value { margin-top:5px; font-size:33px; font-weight:500; letter-spacing:-1px; line-height:1.4; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
     .metric-unit { display:inline-block; color:var(--muted); font-size:11px; font-weight:400; margin-left:6px; letter-spacing:0; }
-    .metric-note { display:none; }
     .report-index { margin-top:20px; }.metrics[hidden]+.report-index { margin-top:0; }
     .question-index { display:flex; flex-wrap:wrap; gap:6px 20px; margin:0; padding:0; list-style:none; min-width:0; }
     .question-index li { margin:0; min-width:0; max-width:100%; }
@@ -85,9 +84,9 @@
       th,td { padding-inline:16px; }summary { padding:12px 16px; }.sql-meta { flex-wrap:wrap; padding-inline:16px; }.sql-meta > span { overflow-wrap:anywhere; min-width:0; }.query-id { padding-inline:16px; }
       .source-grid { grid-template-columns:1fr; gap:20px; }.sources { margin:0 22px; padding-top:24px; }.limitations { padding:16px; }footer { padding:24px 22px; }#truncation { margin-inline:22px; }
     }
-    @media(prefers-reduced-motion:reduce) { html { scroll-behavior:auto; }button,summary,#status { transition:none; } }
+    @media(prefers-reduced-motion:reduce) { button,summary,#status { transition:none; } }
     @media print {
-      .copy,#status,.skip,.report-index { display:none; }body { background:white; }main { max-width:none; margin:0; border:0; border-radius:0; box-shadow:none; }.report-intro,.analysis,.sources { padding:16px 0; }.overview,.sources { margin:0; }.table-scroll { max-height:none; overflow:visible; }
+      .copy,#status,.skip,.report-index { display:none; }body { background:white; }main { max-width:none; margin:0; }.report-intro,.analysis,.sources { padding:16px 0; }.overview,.sources { margin:0; }.table-scroll { max-height:none; overflow:visible; }
       .analysis,.sources { break-inside:avoid; }.sql:not([open]) { display:none; }iframe { height:220px; }
     }
   </style>
@@ -118,7 +117,7 @@
 
   <!-- Repeated content has a fixed structure. Every report value is bound with textContent. -->
   <template id="metric-template">
-    <div class="metric"><div class="metric-label" data-field="label"></div><div class="metric-value"><span data-field="value"></span><span class="metric-unit" data-field="unit"></span></div><div class="metric-note" data-field="note"></div></div>
+    <div class="metric"><div class="metric-label" data-field="label"></div><div class="metric-value"><span data-field="value"></span><span class="metric-unit" data-field="unit"></span></div></div>
   </template>
   <template id="section-template">
     <section class="analysis">
@@ -183,7 +182,7 @@
     report.metrics.forEach(metric => {
       const query = queries.get(metric.queryId);
       const node = clone('metric-template');
-      bind(node, { label:metric.label, value:format(Number(query.result.data[metric.rowIndex][metric.field])), unit:metric.unit, note:query.result.truncated ? '执行结果 · 已截断' : '取自执行结果' });
+      bind(node, { label:metric.label, value:format(Number(query.result.data[metric.rowIndex][metric.field])), unit:metric.unit });
       document.getElementById('metrics').append(node);
     });
     report.sections.forEach((section, index) => {

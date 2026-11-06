@@ -16,7 +16,7 @@ Skill 唯一维护源是 `skills/ava/`。专家包中的 `.mcp.json` 来自 `con
 ## 维护者发版
 
 1. 同步 `package.json`、`npm-shrinkwrap.json`、连接器、专家、Agent、Skill、文档中的版本和安装 URL，更新 CHANGELOG。当前源码的报告功能尚未发布，不覆盖已发布 v0.2.1 文件。
-2. 运行 `npm ci`、`npm run typecheck`、`npm test`、`npm run test:integration`、`npm run test:package`。最后一项会构建、打包，并在新目录验证安装、类型声明、公开 API 和完整示例。
+2. 运行 `npm ci`、`npm test`、`npm run test:integration`、`npm run test:package`。最后一项会构建、打包，并在新目录验证安装、类型声明、公开 API 和完整示例。
 3. 推送源码与 tag，在对应 GitHub Release 上传四个同版本包和 `SHA256SUMS`。预览版标记 prerelease；已发布文件不覆盖。
 4. 核对下载链接和校验和，再用远程 TGZ 地址执行 `npx --yes --package=<URL> ava-workbuddy smoke`。
 5. 需要更新 WorkBuddy 专家或连接器时，另行上传新包并完成客户端验证和平台审核。

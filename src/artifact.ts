@@ -56,10 +56,9 @@ function chartSpec(chart: NonNullable<z.output<typeof artifactInput>['sections']
   });
   if (!data.length) throw new Error('查询没有返回数据，暂不绘图。');
   return { chartType: chart.type, config: {
-    type: chart.type, data,
+    data,
     axisXTitle: chart.categoryLabel ?? chart.categoryField,
     axisYTitle: chart.valueLabel ?? chart.valueField,
-    theme: 'default',
   } };
 }
 

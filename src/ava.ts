@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { access, realpath, stat } from 'node:fs/promises';
+import { realpath, stat } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, extname, isAbsolute, resolve } from 'node:path';
 import { root, metadata } from './metadata.js';
@@ -24,7 +24,6 @@ export async function sourcePath(path: string) {
   const resolved = await realpath(path);
   if (!['.csv', '.xlsx'].includes(extname(resolved).toLowerCase())) throw new Error('The resolved source must also be a CSV or XLSX file.');
   if (!(await stat(resolved)).isFile()) throw new Error('The source must be a regular file.');
-  await access(resolved);
   return resolved;
 }
 

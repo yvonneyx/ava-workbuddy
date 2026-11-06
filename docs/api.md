@@ -78,7 +78,7 @@ interface CleanupReport {
 ## 首次分析与环境检查
 
 - `checkEnvironment()`：检查 Node.js、系统和固定 AVA 版本；不验证 socket 可用性或图表视觉效果。
-- `runDemo(newAbsoluteDirectory?)`：用 8 行模拟销售数据依次执行四轮只读查询（总体、产品贡献、回落产品追问、增量核对），核对后保存 CSV、SQL、JSON、单图 HTML 和完整 `artifact.html`（当前源码新增）。返回 `artifact`、`artifactData`（自动保存的模板字段 JSON）、`queryCount`、`alternateArtifact`（同模板的单问题示例）及 `artifactChartErrors`。省略目录时使用新临时目录；已有目录会被拒绝。`sessionDisposedAfterCompletion` 反映清理结果。
+- `runDemo(newAbsoluteDirectory?)`：用 8 行模拟销售数据依次执行四轮只读查询（总体、产品贡献、回落产品追问、增量核对），核对后只保存源 CSV、分项 SQL 与结果 JSON、完整 `artifact.html` 和证据 `artifact.json`。返回 `artifact`、`artifactData`、`queryCount` 及 `artifactChartErrors`；各轮 SQL、结果和图表均包含在报告与证据中。省略目录时使用新临时目录；已有目录会被拒绝。`sessionDisposedAfterCompletion` 反映清理结果。
 - `smoke()`：在临时目录完成同样的分析并清理示例文件，返回计算和 HTML 生成状态。HTML 成功不代表联网预览已通过。
 
 ## 嵌入 MCP

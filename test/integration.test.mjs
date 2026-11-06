@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { access, copyFile, mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import { access, copyFile, mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Client } from '@modelcontextprotocol/client';
@@ -72,10 +72,8 @@ test('MCP first use, CSV/XLSX, read-only queries, charts, errors, and restart', 
     assert.equal(Number(evidence.get(artifactData.sections[2].queryId).result.data[0].revenue), 6000);
     assert.equal(Number(evidence.get(artifactData.sections[3].queryId).result.data[0].reconciliation_difference), 0);
     assert.equal(artifactData.charts.length, 3);
-    const stripData = html => html.replace(/<script id="artifact-data" type="application\/json">.*?<\/script>/s, '<!-- ARTIFACT_DATA -->');
-    assert.equal(stripData(await readFile(demo.artifact, 'utf8')), stripData(await readFile(demo.alternateArtifact, 'utf8')));
-    const config = JSON.parse(await readFile(join(demo.outputDirectory, 'chart.json'), 'utf8'));
-    assert.equal(config.config.data.reduce((sum, row) => sum + row.value, 0), 7500);
+    assert.equal(evidence.get(artifactData.sections[1].queryId).result.data.reduce((sum, row) => sum + Number(row.change), 0), 7500);
+    assert.deepEqual((await readdir(demo.outputDirectory)).sort(), ['artifact.html', 'artifact.json', 'query.sql', 'result.json', 'sales.csv']);
     const xlsx = (await call(client, 'ava_source', { path: join(root, 'test/fixtures/销售 数据.xlsx') })).datasetId;
     const excelSchema = await call(client, 'ava_schema', { datasetId: xlsx });
     const table = excelSchema.models[0].tableReference.table;

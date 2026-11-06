@@ -31,11 +31,9 @@ try {
     await cp(join(root, 'skills/ava'), skillDestination, { recursive: true });
     for (const file of ['LICENSE', 'NOTICE']) await cp(join(root, file), join(destination, file));
     if (kind !== 'skill') {
-      await cp(join(root, 'docs'), join(destination, 'docs'), { recursive: true });
-      await writeFile(join(destination, 'README.md'), `# AVA WorkBuddy ${kind} ${metadata.version}\n\n${metadata.homepage}\n\nSee [publishing instructions](docs/publishing.md). Requires macOS/Linux and WorkBuddy 5.0.0+.\n\nThis is a community integration; no additional model key is required. See NOTICE for upstream attribution.\n`);
+      await writeFile(join(destination, 'README.md'), `# AVA WorkBuddy ${kind} ${metadata.version}\n\n${metadata.homepage}\n\nRequires macOS/Linux and WorkBuddy 5.0.0+.\n\nThis is a community integration; no additional model key is required. See NOTICE for upstream attribution.\n`);
     }
     const archive = join(dist, `ava-workbuddy-${kind}-${metadata.version}.zip`);
-    await rm(archive, { force: true });
     // Explicit directory input includes the dotfiles required by WorkBuddy expert packages.
     execFileSync('zip', ['-q', '-r', '-X', archive, directory], { cwd: staging });
     execFileSync('unzip', ['-tq', archive]);

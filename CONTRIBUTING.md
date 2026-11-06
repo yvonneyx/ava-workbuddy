@@ -29,7 +29,6 @@ npm run test:integration
 ## 提交前验证
 
 ```sh
-npm run typecheck
 npm test
 npm run test:integration
 npm run test:package

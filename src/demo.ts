@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { copyFile, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { root } from './metadata.js';
@@ -74,16 +74,7 @@ FROM totals`);
     const contributionConclusion = contributions.data.map((row) => `${row.product} ${Number(row.change) < 0 ? '减少' : '增加'} ${number(Math.abs(Number(row.change)))} 美元`).join('；') + `。Analytics 贡献净增量的 ${number(100 * Number(contributions.data.find((row) => row.product === 'Analytics')!.change) / Number(checked.total_change))}%。`;
     const declineConclusion = `${product} 的收入从 ${number(declining.january)} 美元降至 ${number(declining.february)} 美元，减少 ${number(-Number(declining.change))} 美元，降幅为 ${number(-100 * Number(declining.change) / Number(declining.january))}%。数据只支持确认回落幅度，不能解释原因。`;
     const reconciliationConclusion = `增长产品合计增加 ${number(checked.gross_increase)} 美元，回落产品合计减少 ${number(checked.gross_decrease)} 美元，相抵后净增加 ${number(checked.product_net_change)} 美元，与总体增量 ${number(checked.total_change)} 美元一致，核对差额为 ${number(checked.reconciliation_difference)} 美元。`;
-    const spec = { chartType: 'bar', config: {
-      type: 'bar', title: '各产品收入变化（2025 年 2 月相对 1 月，美元）',
-      data: contributions.data.map((row) => ({ category: row.product, value: Number(row.change) })),
-      axisXTitle: '产品', axisYTitle: '收入变化（美元）',
-    } };
-    const chart = await runtime.viz(spec, join(output, 'chart.html'));
-    assert((await stat(chart.output)).size > 0, 'Empty HTML.');
-    for (const [file, data] of Object.entries({ 'schema.json': schema, 'result.json': contributions, 'totals.json': totals, 'decline.json': decline, 'reconciliation.json': reconciliation, 'chart.json': spec })) {
-      await writeFile(join(output, file), JSON.stringify(data, null, 2), { flag: 'wx' });
-    }
+    await writeFile(join(output, 'result.json'), JSON.stringify(contributions, null, 2), { flag: 'wx' });
     await writeFile(join(output, 'query.sql'), sql, { flag: 'wx' });
     const summary = `${overallConclusion} ${reconciliationConclusion} 这份模拟数据无法说明变化原因。`;
     const artifact = await runtime.artifact({
@@ -109,20 +100,11 @@ FROM totals`);
       definitions: ['时间：2025 年 1 月与 2 月，按自然月比较。', '指标：revenue 的合计值；金额单位为美元。', '产品变化 = 2 月收入 − 1 月收入；环比 = 收入变化 ÷ 1 月收入。'],
       limitations: ['本报告使用随包提供的 8 行模拟数据，并非用户的真实业务数据。', '数据未包含流量、价格、客户数量或成本，无法判断增长原因、利润变化或下一步投放预算。'],
     });
-    const compactArtifact = await runtime.artifact({
-      output: join(output, 'artifact-products.html'), title: '2 月各产品收入',
-      summary: '2 月收入合计 37,500 美元，Analytics 收入最高，为 18,000 美元。',
-      sections: [{ question: '各产品 2 月收入分别是多少？',
-        conclusion: 'Analytics 为 18,000 美元，Automation 为 10,000 美元，Reporting 为 5,000 美元，Support 为 4,500 美元。合计 37,500 美元。',
-        queryId: contributions.queryId, chart: { type: 'bar', categoryField: 'product', valueField: 'february', categoryLabel: '产品', valueLabel: '2 月收入（美元）' } }],
-      definitions: ['使用结果表的 february 字段，金额单位为美元。'],
-      limitations: ['使用 8 行模拟数据，不代表真实业务。'],
-    });
-    await writeFile(join(output, 'report.txt'), `${summary}\n\n图表 HTML 已生成；浏览器预览尚未验证，需联网加载 GPT-Vis。\n`, { flag: 'wx' });
+    assert.deepEqual(artifact.chartErrors, [], 'Demo charts failed.');
     result = { verified: true, january, february, change: february - january, growthRate: 0.25, summary,
-      outputDirectory: output, chart: chart.output, results: join(output, 'result.json'), query: join(output, 'query.sql'),
+      outputDirectory: output, results: join(output, 'result.json'), query: join(output, 'query.sql'),
       artifact: artifact.output, artifactChartErrors: artifact.chartErrors,
-      artifactData: artifact.dataOutput, alternateArtifact: compactArtifact.output, queryCount: artifact.queryCount,
+      artifactData: artifact.dataOutput, queryCount: artifact.queryCount,
       htmlGenerated: true, chartPreviewVerified: false, dataKind: 'synthetic-demo', sessionDisposedAfterCompletion: false };
   } finally {
     const cleanup = await runtime.close();
