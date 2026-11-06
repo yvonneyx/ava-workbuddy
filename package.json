@@ -41,7 +41,7 @@
     "pretest": "npm run build",
     "check": "node lib/cli.js check",
     "smoke": "node lib/cli.js smoke",
-    "test": "node --test test/unit.test.mjs",
+    "test": "node --test test/unit.test.mjs test/sampling-probe.test.mjs test/workbuddy-cli-model.test.mjs",
     "test:integration": "node --test test/integration.test.mjs",
     "test:package": "node scripts/test-package.mjs",
     "validate": "node scripts/validate.mjs",
