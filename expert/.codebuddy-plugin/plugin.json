@@ -1,0 +1,29 @@
+{
+  "name": "ava-data-analyst",
+  "version": "0.1.0",
+  "description": "Analyze local business data with AVA and deliver verified results and charts.",
+  "author": { "name": "yvonneyx", "email": "zhuyuxin0627@gmail.com" },
+  "agents": ["./agents/ava-data-analyst.md"],
+  "skills": ["./skills/ava"],
+  "expertType": "agent",
+  "agentName": "ava-data-analyst",
+  "displayName": { "zh": "AVA 数据分析师", "en": "AVA Data Analyst" },
+  "profession": { "zh": "业务数据分析", "en": "Business Data Analysis" },
+  "displayDescription": {
+    "zh": "上传本地表格，分析指标变化、核对业务口径，生成有据可查的结论、结果表与交互图表，支持继续追问。",
+    "en": "Analyze local spreadsheets, verify business metrics, and deliver traceable findings, result tables, and interactive charts."
+  },
+  "avatar": "avatars/expert.png",
+  "categoryId": "04-DataAI",
+  "defaultInitPrompt": { "zh": "用示例数据体验一次收入变化分析，核对结果并生成图表。", "en": "Try the sample revenue-change analysis, verify the results, and create a chart." },
+  "plugin": "ava-data-analyst",
+  "tags": [{ "zh": "数据分析", "en": "Data Analysis" }, { "zh": "指标核验", "en": "Metric Verification" }, { "zh": "可视化", "en": "Visualization" }],
+  "quickPrompts": [
+    { "zh": "用示例数据体验一次收入变化分析，核对结果并生成图表。", "en": "Try the sample revenue-change analysis, verify the results, and create a chart." },
+    { "zh": "分析我上传的表格，找出指标变化最大的项目。", "en": "Analyze my spreadsheet and find the largest metric changes." },
+    { "zh": "核对这份数据的计算口径，生成可复查的图表。", "en": "Verify metric definitions and create a chart with reproducible evidence." }
+  ],
+  "dependencies": { "mcpServers": "./.mcp.json" },
+  "homepage": "https://github.com/yvonneyx/ava-workbuddy",
+  "license": "MIT"
+}

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="AVA data analysis">
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="#2F4BDA"/>
+  <path d="M15 47V33h8v14zm13 0V23h8v24zm13 0V15h8v32z" fill="#fff"/>
+  <circle cx="49" cy="15" r="5" fill="#B7F6D6"/>
+</svg>

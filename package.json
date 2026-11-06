@@ -1,0 +1,31 @@
+{
+  "name": "ava-workbuddy",
+  "version": "0.1.0",
+  "description": "Local AVA data analysis for WorkBuddy: MCP, Skill, and expert packages",
+  "type": "module",
+  "license": "MIT",
+  "author": { "name": "yvonneyx", "email": "zhuyuxin0627@gmail.com" },
+  "repository": { "type": "git", "url": "git+ssh://git@github.com/yvonneyx/ava-workbuddy.git" },
+  "homepage": "https://github.com/yvonneyx/ava-workbuddy",
+  "engines": { "node": ">=22.13.0" },
+  "bin": { "ava-workbuddy": "src/cli.mjs" },
+  "files": ["src", "examples", "skills", "docs", "LICENSE", "NOTICE", "README.md"],
+  "scripts": {
+    "check": "node src/cli.mjs check",
+    "smoke": "node src/cli.mjs smoke",
+    "test": "node --test test/unit.test.mjs",
+    "test:integration": "node --test test/integration.test.mjs",
+    "test:package": "node scripts/test-package.mjs",
+    "validate": "node scripts/validate.mjs",
+    "package": "node scripts/package.mjs"
+  },
+  "dependencies": {
+    "@antv/ava": "4.0.0",
+    "@modelcontextprotocol/server": "2.4.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "2.4.0",
+    "yaml": "2.9.1"
+  }
+}
