@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { join, dirname } from 'node:path';
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { join, dirname, relative } from 'node:path';
 import { tmpdir } from 'node:os';
 import assert from 'node:assert/strict';
 import { root, metadata } from '../lib/metadata.js';
@@ -21,13 +21,34 @@ assert(
 assert(!files.some((path) => /(?:node_modules|\/tests?\/|\/scripts\/|\.env)/.test(path)));
 assert(!files.some((path) => /\/(?:examples|templates|avatars)\//.test(path)));
 
-// 平台要求的资源位置由打包生成，内容必须与 public 中的维护源一致。
-for (const [kind, entry, source] of [
+// 分发路径可以不同，Skill、MCP 配置和资源必须与维护源逐字节一致。
+const copies = [
   ['connector', 'ava-connector/icon.svg', 'public/icon.svg'],
   ['expert', 'ava-workbuddy-assistant/avatars/expert.png', 'public/avatars/expert.png'],
-]) {
+  ['connector', 'ava-connector/mcp.json', 'connector/mcp.json'],
+  ['expert', 'ava-workbuddy-assistant/.mcp.json', 'connector/mcp.json'],
+];
+const skillDirectory = join(root, 'skills/ava');
+for (const entry of await readdir(skillDirectory, { recursive: true, withFileTypes: true })) {
+  if (!entry.isFile()) {
+    continue;
+  }
+  const path = join(entry.parentPath, entry.name);
+  for (const [kind, prefix] of [
+    ['connector', 'ava-connector/skills/ava'],
+    ['expert', 'ava-workbuddy-assistant/skills/ava'],
+    ['skill', 'ava'],
+  ]) {
+    copies.push([kind, `${prefix}/${relative(skillDirectory, path)}`, relative(root, path)]);
+  }
+}
+for (const [kind, entry, source] of copies) {
   const zip = join(root, 'dist', `ava-workbuddy-${kind}-${metadata.version}.zip`);
-  assert.deepEqual(execFileSync('unzip', ['-p', zip, entry]), await readFile(join(root, source)));
+  assert.deepEqual(
+    execFileSync('unzip', ['-p', zip, entry]),
+    await readFile(join(root, source)),
+    `${kind}: ${entry}`,
+  );
 }
 const directory = await mkdtemp(join(tmpdir(), 'ava-workbuddy-install-'));
 const env = { ...process.env, PATH: `${dirname(process.execPath)}:${process.env.PATH}` };

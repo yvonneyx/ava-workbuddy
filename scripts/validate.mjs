@@ -14,6 +14,8 @@ export async function validate() {
   const connector = await json('connector/connector-meta.json');
   const mcp = await json('connector/mcp.json');
   const plugin = await json('expert/.codebuddy-plugin/plugin.json');
+  const skill = await readFile(join(root, 'skills/ava/SKILL.md'), 'utf8');
+  const skillFrontmatter = parse(skill.split('---')[1]);
 
   // -----------------------------------------------------------------------------
   // 连接器与 MCP 安装配置
@@ -64,6 +66,7 @@ export async function validate() {
     assert.equal(frontmatter.name, plugin.agentName);
     assert.deepEqual(frontmatter.displayName, plugin.displayName);
     assert.deepEqual(frontmatter.profession, plugin.profession);
+    assert.deepEqual(frontmatter.skills, [skillFrontmatter.name]);
     assert(!('tools' in frontmatter), 'WorkBuddy assigns expert tool permissions.');
     for (const field of ['description', 'displayName', 'profession']) {
       assert(frontmatter[field]);
@@ -74,8 +77,6 @@ export async function validate() {
   // Skill 引用与头像资源
   // -----------------------------------------------------------------------------
 
-  const skill = await readFile(join(root, 'skills/ava/SKILL.md'), 'utf8');
-  const frontmatter = parse(skill.split('---')[1]);
   for (const field of [
     'name',
     'display_name',
@@ -86,9 +87,9 @@ export async function validate() {
     'version',
     'author',
   ]) {
-    assert(frontmatter[field], `Missing Skill ${field}`);
+    assert(skillFrontmatter[field], `Missing Skill ${field}`);
   }
-  assert.equal(frontmatter.version, metadata.version);
+  assert.equal(skillFrontmatter.version, metadata.version);
   for (const match of skill.matchAll(/\]\((references\/[^)]+)\)/g)) {
     await access(join(root, 'skills/ava', match[1]));
   }
