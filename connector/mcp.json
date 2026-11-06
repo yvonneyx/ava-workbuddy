@@ -3,7 +3,7 @@
     "yvonneyx-ava": {
       "type": "stdio",
       "command": "npx",
-      "args": ["--yes", "--package=https://github.com/yvonneyx/ava-workbuddy/archive/refs/tags/v0.1.1.tar.gz", "ava-workbuddy", "serve"],
+      "args": ["--yes", "--package=https://github.com/yvonneyx/ava-workbuddy/archive/refs/tags/v0.1.2.tar.gz", "ava-workbuddy", "serve"],
       "runtime": { "type": "node", "version": ">=22.13.0 <23" },
       "timeout": 120000
     }
