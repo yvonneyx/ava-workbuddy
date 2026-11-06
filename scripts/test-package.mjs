@@ -16,9 +16,9 @@ assert(files.includes('package/public/artifact.html'));
 assert(files.includes('package/public/icon.svg'));
 assert(files.includes('package/npm-shrinkwrap.json'));
 assert(
-  !files.some((path) => /(?:CONTRIBUTING\.md|CHANGELOG\.md|docs\/publishing\.md)$/.test(path)),
+  !files.some((path) => /(?:CONTRIBUTING\.md|CHANGELOG\.md)$/.test(path)),
 );
-assert(!files.some((path) => /(?:node_modules|\/tests?\/|\/scripts\/|\.env)/.test(path)));
+assert(!files.some((path) => /(?:node_modules|\/(?:tests?|scripts|docs)\/|\.env)/.test(path)));
 assert(!files.some((path) => /\/(?:examples|templates|avatars|skills)\//.test(path)));
 
 // 分发路径可以不同，MCP 配置和资源必须与维护源逐字节一致。

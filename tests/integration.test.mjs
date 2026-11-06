@@ -353,19 +353,23 @@ test(
       await call(client, 'ava_semantic', { datasetId: id, definition: semantic });
       assert.deepEqual(await call(client, 'ava_semantic', { datasetId: id }), semantic);
       const output = join(directory, 'chart.html');
-      await call(client, 'ava_viz', {
+      const chartInput = {
         spec: {
           chartType: 'bar',
           config: { type: 'bar', data: [{ category: 'Total', value: 67500 }] },
         },
         output,
-      });
+      };
+      await call(client, 'ava_viz', chartInput);
       assert((await stat(output)).size > 0);
+      assert.equal((await stat(output)).mode & 0o777, 0o600);
+      const chartHTML = await readFile(output);
       const duplicate = await client.callTool({
         name: 'ava_viz',
-        arguments: { spec: { chartType: 'bar', config: {} }, output },
+        arguments: chartInput,
       });
       assert.equal(duplicate.isError, true);
+      assert.deepEqual(await readFile(output), chartHTML);
       const beforeMissing = await readFile(output);
       const missing = await client.callTool({
         name: 'ava_source',

@@ -199,7 +199,8 @@ export function createServer(runtime = new Runtime()) {
     'ava_viz',
     'Render verified query results as a GPT-Vis chart HTML. Spec requires ' +
       'chartType and config, not syntax. Absolute output path must be new; parent ' +
-      'directory must exist. HTML needs network for GPT-Vis; generation does not ' +
+      'directory must exist. HTML embeds its data and is saved with owner-only permissions. ' +
+      'HTML needs network for GPT-Vis; generation does not ' +
       'prove visual rendering. Standalone config must include the verified data. ' +
       'Use the native fields defined for chartType, e.g. category/value for column, ' +
       'time/value for line; numeric values must be JSON numbers. Arbitrary query column ' +

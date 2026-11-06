@@ -1,4 +1,5 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { chmod, copyFile, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -195,13 +196,21 @@ export class Runtime {
   }
 
   viz(spec: ChartSpec, output: string) {
-    return this.#run(() =>
-      this.#execute(
-        ['viz', '--spec', '-', '--output', outputPath(output)],
-        vizResult,
-        JSON.stringify(chartSpec.parse(spec)),
-      ),
-    );
+    return this.#run(async () => {
+      const destination = outputPath(output);
+      const input = JSON.stringify(chartSpec.parse(spec));
+      const directory = await mkdtemp(join(tmpdir(), 'ava-workbuddy-viz-'));
+      try {
+        // 上游按默认权限写 HTML；先在私有目录生成，避免导出时短暂暴露内嵌数据。
+        const staged = join(directory, 'chart.html');
+        await this.#execute(['viz', '--spec', '-', '--output', staged], vizResult, input);
+        await chmod(staged, 0o600);
+        await copyFile(staged, destination, constants.COPYFILE_EXCL);
+        return { output: destination };
+      } finally {
+        await rm(directory, { recursive: true, force: true });
+      }
+    });
   }
 
   artifact(input: ArtifactInput) {

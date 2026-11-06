@@ -30,7 +30,7 @@ ZIP 内 MCP 配置已预设 v1.0.0 的公开 TGZ 地址；发布前该地址不�
 ```
 
 上传 CSV / XLSX 并描述问题；也可下载 [模拟数据](tests/fixtures/sales.csv) 后上传体验。包校验和与发布
-流程见[发布指南](docs/publishing.md)。
+流程见[手动发布](CONTRIBUTING.md#手动发布)。
 
 ### 本地开发
 
@@ -50,8 +50,8 @@ node lib/cli.js check
 
 **加载数据源 → 查看结构 → 执行只读查询 → 核对结果 → 生成图表或报告 → 释放会话**
 
-MCP 的工具描述和输入 schema 提供分析规则、参数与原生图表配置，无需加载额外指导文件。库调用见
-[API](docs/api.md)。报告包含结论、结果表、SQL 和可选图表，数据来自实际查询证据。
+MCP 工具描述和输入 schema 提供分析规则、参数与图表配置。报告包含结论、结果表、SQL 和可选图表，
+数据来自实际查询。
 
 - 文件、内联数据和飞书表格由本地 DuckDB 查询，MySQL/PostgreSQL/SQLite/MongoDB 通过 DuckDB 扩展接入
   ；ClickHouse 和 Supabase 使用远程引擎。查询结果返回 WorkBuddy，适用其模型服务的数据处理规则。
@@ -61,12 +61,12 @@ MCP 的工具描述和输入 schema 提供分析规则、参数与原生图表�
 - Excel 首次读取可能下载 DuckDB `excel` 扩展；交互图表需联网加载 GPT-Vis。HTML 生成成功与实际视觉预
   览分别验证。
 - 会话闲置 30 分钟或连接重启后需重新加载数据源；超时可能仍在计算，不要自动重试或释放。
-- 报告内嵌查询结果，分享 HTML 也会分享这些数据。正文、表格和 SQL 可离线查看。
+- 图表和报告以 `600` 权限保存，HTML 内嵌查询数据，分享文件也会分享这些数据。正文、表格和 SQL 可离线
+  查看。
 
 ## 数据源
 
-`ava_source` 保留 `path` 参数，新增 `config` 和文件格式覆盖 `type`。`path` 与 `config` 二选一；具体
-配置示例见 [API](docs/api.md#数据源配置)。
+`ava_source` 的 `path` 与 `config` 二选一；`type` 可覆盖文件格式。具体参数见 MCP 工具 schema。
 
 | 数据源                            | 入口                                             |
 | --------------------------------- | ------------------------------------------------ |
@@ -108,12 +108,10 @@ tests/        单元与集成测试、demo helper 和 fixtures
 connector/    连接器元信息和 MCP 配置
 expert/       专家身份、表达偏好和展示信息
 scripts/      配置校验、打包和安装验证
-docs/         API 和发布指南
 lib/、dist/   生成文件，不提交
 ```
 
-库使用方式与错误处理见 [API](docs/api.md)，开发约定见 [贡献指南](CONTRIBUTING.md)，当前版本变化见
-[CHANGELOG](CHANGELOG.md)。
+开发与发布见[贡献指南](CONTRIBUTING.md)，版本变化见 [CHANGELOG](CHANGELOG.md)。
 
 ## 常见问题
 

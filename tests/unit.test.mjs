@@ -863,6 +863,42 @@ test('monthly revenue fields require explicit mapping and leave query evidence u
   }
 });
 
+test('standalone charts export private files without replacing existing files or symlinks', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'ava-private-chart-'));
+  const runtime = new StubRuntime();
+  const output = join(directory, 'chart.html');
+  const spec = { chartType: 'bar', config: { data: [{ category: 'Private', value: 1 }] } };
+  const html = '<html>private chart data</html>';
+  const staged = [];
+  runtime.command = async (args) => {
+    const path = args.at(-1);
+    staged.push(path);
+    assert.notEqual(path, output);
+    assert.equal((await stat(join(path, '..'))).mode & 0o777, 0o700);
+    await writeFile(path, html, { mode: 0o644 });
+    return { output: path };
+  };
+  try {
+    assert.deepEqual(await runtime.viz(spec, output), { output });
+    assert.equal((await stat(output)).mode & 0o777, 0o600);
+    assert.equal(await readFile(output, 'utf8'), html);
+    await assert.rejects(runtime.viz(spec, output), { code: 'EEXIST' });
+    assert.equal(await readFile(output, 'utf8'), html);
+    const target = join(directory, 'existing.html');
+    const alias = join(directory, 'alias.html');
+    await writeFile(target, 'keep existing data');
+    await symlink(target, alias);
+    await assert.rejects(runtime.viz(spec, alias), { code: 'EEXIST' });
+    assert.equal(await readFile(target, 'utf8'), 'keep existing data');
+    for (const path of staged) {
+      await assert.rejects(access(path), { code: 'ENOENT' });
+    }
+  } finally {
+    await runtime.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test('standalone charts reject missing native fields and numeric strings before AVA runs', async () => {
   const runtime = new StubRuntime();
   for (const spec of [
