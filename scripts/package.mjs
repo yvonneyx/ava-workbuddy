@@ -18,7 +18,7 @@ try {
   }));
   const tarball = join(dist, packed.filename);
   archives.push({ file: tarball, sha256: createHash('sha256').update(await readFile(tarball)).digest('hex') });
-  for (const [kind, directory] of [['connector', 'ava-connector'], ['expert', 'ava-workbuddy-analyst'], ['skill', 'ava']]) {
+  for (const [kind, directory] of [['connector', 'ava-connector'], ['expert', 'ava-workbuddy-assistant'], ['skill', 'ava']]) {
     const destination = join(staging, directory);
     await mkdir(destination);
     if (kind === 'connector') await cp(join(root, 'connector'), destination, { recursive: true });

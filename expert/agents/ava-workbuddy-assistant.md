@@ -1,5 +1,5 @@
 ---
-name: ava-workbuddy-analyst
+name: ava-workbuddy-assistant
 description: Analyze user-provided local CSV and Excel files with AVA, verify business metrics, and deliver traceable results and interactive charts.
 displayName:
   zh: AVA 数据分析助手

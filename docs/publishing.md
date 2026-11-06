@@ -10,7 +10,7 @@
 
 1. 从本仓库 GitHub Releases 下载 `ava-workbuddy-expert-0.2.1.zip`，可用同页 `SHA256SUMS` 核对。
 2. 在创建专家流程中上传该 ZIP。它包含 `.codebuddy-plugin/plugin.json`、Agent 定义、512px PNG 头像、完整 Skill，以及内置 MCP 的 `.mcp.json`。
-平台要求 `profession.zh`（专家职称）和 `name`（内部标识）在同类型资产中唯一。已有草稿占用时，应修改代码包内对应字段后重新上传，不能仅修改页面花名。本包使用 `AVA 数据分析助手` 和 `ava-workbuddy-analyst`。
+平台要求 `profession.zh`（专家职称）和 `name`（内部标识）在同类型资产中唯一。已有草稿占用时，应修改代码包内对应字段后重新上传，不能仅修改页面花名。本包使用 `AVA 数据分析助手` 和 `ava-workbuddy-assistant`。
 
 3. 如表单要求手工补充，使用：名称「AVA 数据分析助手」、专家职称「AVA 数据分析助手」、分类「数据智能 / 04-DataAI」、版本 `0.2.1`、作者 `yvonneyx`、主页 `https://github.com/yvonneyx/ava-workbuddy`。介绍与三个推荐问题以 `expert/.codebuddy-plugin/plugin.json` 为准。
 4. 在平台可用的预览/试用环节召唤专家。按内联引导连接其本地 MCP，等初次下载结束；确认发现 8 个 AVA 工具。

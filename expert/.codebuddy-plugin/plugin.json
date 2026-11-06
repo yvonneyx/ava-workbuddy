@@ -1,12 +1,12 @@
 {
-  "name": "ava-workbuddy-analyst",
+  "name": "ava-workbuddy-assistant",
   "version": "0.2.1",
   "description": "Analyze local business data with AVA and deliver verified results and charts.",
   "author": { "name": "yvonneyx", "email": "zhuyuxin0627@gmail.com" },
-  "agents": ["./agents/ava-workbuddy-analyst.md"],
+  "agents": ["./agents/ava-workbuddy-assistant.md"],
   "skills": ["./skills/ava"],
   "expertType": "agent",
-  "agentName": "ava-workbuddy-analyst",
+  "agentName": "ava-workbuddy-assistant",
   "displayName": { "zh": "AVA 数据分析助手", "en": "AVA Data Analysis Assistant" },
   "profession": { "zh": "AVA 数据分析助手", "en": "AVA Data Analysis Assistant" },
   "displayDescription": {
@@ -16,7 +16,7 @@
   "avatar": "avatars/expert.png",
   "categoryId": "04-DataAI",
   "defaultInitPrompt": { "zh": "用示例数据体验一次收入变化分析，核对结果并生成图表。", "en": "Try the sample revenue-change analysis, verify the results, and create a chart." },
-  "plugin": "ava-workbuddy-analyst",
+  "plugin": "ava-workbuddy-assistant",
   "tags": [{ "zh": "数据分析", "en": "Data Analysis" }, { "zh": "指标核验", "en": "Metric Verification" }, { "zh": "可视化", "en": "Visualization" }],
   "quickPrompts": [
     { "zh": "用示例数据体验一次收入变化分析，核对结果并生成图表。", "en": "Try the sample revenue-change analysis, verify the results, and create a chart." },
