@@ -4,6 +4,8 @@
 
 ## 安装
 
+本文描述当前源码 API；已发布 v0.2.1 不含 `artifact()` 和查询证据编号。报告功能需从源码构建。
+
 ```sh
 npm install https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.2.1/ava-workbuddy-0.2.1.tgz
 ```
@@ -27,7 +29,7 @@ Release 的 TGZ 已编译，使用者不需要 TypeScript 编译器。源码开�
 | --- | --- |
 | `source(path)` | `{ datasetId }`；绝对路径、现存本地 CSV/XLSX，文件只读 |
 | `schema(datasetId)` | `SchemaResult`；真实表、字段、类型及查询语言 |
-| `query(datasetId, sql, maxRows?)` | `QueryResult`；只读 SQL，最多 512 KiB；返回行数 1–10000，默认 200 |
+| `query(datasetId, sql, maxRows?)` | `ExecutedQueryResult`（含 `queryId`）；只读 SQL，最多 512 KiB；返回行数 1–10000，默认 200 |
 | `semantic(datasetId, definition?)` | `SemanticDefinition`；省略时读取，传入对象时完整替换，不自动改写 SQL |
 | `viz(spec, output)` | `{ output }`；`spec` 包含 `chartType` 和 `config`，输出必须是新 `.html` 绝对路径，父目录已存在 |
 | `artifact(input)` | 固定模板分析 HTML；按 `queryId` 内嵌执行结果、SQL、来源和图表，自动保存同名 `.json`，返回 `output`、`dataOutput`、章节数、查询数及 `chartErrors`；两份文件均不得已存在 |

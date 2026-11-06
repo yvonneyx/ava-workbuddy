@@ -8,6 +8,7 @@ import { validate } from './validate.mjs';
 
 await validate();
 const dist = join(root, 'dist');
+await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
 const staging = await mkdtemp(join(tmpdir(), 'ava-workbuddy-pack-'));
 const archives = [];
