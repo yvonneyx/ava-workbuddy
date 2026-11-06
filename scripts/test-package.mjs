@@ -82,6 +82,7 @@ import {
   type CleanupReport,
   type SourceConfig,
   type FileSourceType,
+  type ChartSpec,
 } from 'ava-workbuddy';
 import { createServer } from 'ava-workbuddy/mcp';
 const runtime = new Runtime();
@@ -108,9 +109,21 @@ const report: ArtifactInput = {
     },
   ],
 };
+const monthly: ArtifactInput = {
+  output: '/tmp/monthly.html', title: 'Revenue', summary: 'Verified',
+  sections: [{ question: 'Q', conclusion: 'C', queryId: 'q_example',
+    chart: { chartType: 'column', config: { axisYTitle: 'Revenue' } },
+    chartFields: { category: 'month', value: 'total_revenue' },
+  }],
+};
+const standalone: ChartSpec = {
+  chartType: 'column', config: { data: [{ category: 'Jan', value: 10 }] },
+};
 const embedded = createServer();
 await embedded.close();
-console.log(rows, report, cleanup.retained, checkEnvironment().avaVersion);
+console.log(rows, report, monthly, standalone, cleanup.retained, checkEnvironment().avaVersion);
+// @ts-expect-error Chart types are limited to the pinned AVA renderer.
+const unsupportedChart: ChartSpec = { chartType: 'unsupported', config: {} };
 // @ts-expect-error SQL must be a string, never arbitrary execution options.
 runtime.query(source.datasetId, 123);
 // @ts-expect-error Native source types must be supported by AVA.

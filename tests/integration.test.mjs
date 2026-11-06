@@ -355,20 +355,50 @@ test(
       assert.deepEqual(configs[2].categories, ['2025-01', '2025-02']);
       assert.deepEqual(configs[2].series[0].data, [30000, 37500]);
       assert.equal(configs[3].percent, 0.25);
-      const unknown = await call(client, 'ava_artifact', {
-        output: join(directory, 'unknown-chart.html'),
-        title: 'Unknown chart',
+      const invalidChart = await call(client, 'ava_artifact', {
+        output: join(directory, 'invalid-chart.html'),
+        title: 'Invalid chart fields',
         summary: 'Keep query evidence.',
         sections: [
           {
             question: 'Q',
             conclusion: 'C',
             queryId: pie.queryId,
-            chart: { chartType: 'not-a-chart', config: {} },
+            chart: { chartType: 'scatter', config: {} },
           },
         ],
       });
-      assert.match(unknown.chartErrors[0].message, /Unknown chartType/);
+      assert.match(invalidChart.chartErrors[0].message, /config\.data\.0\.x/);
+
+      // 原对话的业务列名需要显式绑定，不能依赖渲染器猜测。
+      const monthly = await call(client, 'ava_query', {
+        datasetId: id,
+        sql: 'SELECT month, COUNT(*) AS rows_cnt, SUM(revenue) AS total_revenue FROM data GROUP BY month ORDER BY month',
+      });
+      const mapped = await call(client, 'ava_artifact', {
+        output: join(directory, 'mapped-chart.html'),
+        title: 'Monthly revenue',
+        summary: 'Verified',
+        sections: [
+          {
+            question: 'Monthly totals?',
+            conclusion: 'Verified',
+            queryId: monthly.queryId,
+            chart: { chartType: 'column', config: { axisYTitle: 'Revenue (USD)' } },
+            chartFields: { category: 'month', value: 'total_revenue' },
+          },
+        ],
+      });
+      assert.deepEqual(mapped.chartErrors, []);
+      const mappedData = JSON.parse(await readFile(mapped.dataOutput, 'utf8'));
+      const mappedConfig = JSON.parse(
+        mappedData.charts[0].html.match(/const visConfig = (.*);/)[1],
+      );
+      assert.deepEqual(mappedConfig.data, [
+        { category: '2025-01', value: 30000 },
+        { category: '2025-02', value: 37500 },
+      ]);
+      assert.deepEqual(mappedData.queries[0].result.data, monthly.data);
 
       // -----------------------------------------------------------------------------
       // 四轮示例与 Excel

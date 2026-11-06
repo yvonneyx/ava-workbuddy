@@ -429,6 +429,38 @@ test('MCP initialization advertises guidance and tools without a separate Skill'
     const { tools } = await client.listTools();
     assert.equal(tools.length, 8);
     assert(tools.every((tool) => tool.description?.trim() && tool.inputSchema.type === 'object'));
+    const spec = tools.find(({ name }) => name === 'ava_viz').inputSchema.properties.spec;
+    const variants = spec.oneOf ?? spec.anyOf;
+    assert.equal(variants.length, 19);
+    const column = variants.find((variant) => variant.properties.chartType.const === 'column');
+    assert(column.properties.config.required.includes('data'));
+    assert.deepEqual(column.properties.config.properties.data.items.required, [
+      'category',
+      'value',
+    ]);
+    const line = variants.find((variant) => variant.properties.chartType.const === 'line');
+    assert.deepEqual(line.properties.config.properties.data.items.required, ['time', 'value']);
+    const artifact = tools.find(({ name }) => name === 'ava_artifact').inputSchema;
+    assert(artifact.properties.sections.items.properties.chartFields);
+    const reportChart = artifact.properties.sections.items.properties.chart;
+    for (const variant of reportChart.oneOf ?? reportChart.anyOf) {
+      for (const key of ['data', 'categories', 'series', 'percent']) {
+        assert(!Object.hasOwn(variant.properties.config.properties, key));
+      }
+    }
+    for (const config of [
+      { data: [{ month: '2025-01', total_revenue: 30000 }] },
+      { data: [{ category: '2025-01', value: '30000' }] },
+    ]) {
+      const response = await client.callTool({
+        name: 'ava_viz',
+        arguments: {
+          spec: { chartType: 'column', config },
+          output: '/tmp/invalid-chart.html',
+        },
+      });
+      assert.equal(response.isError, true);
+    }
   } finally {
     await client.close();
     await connection.close();
@@ -615,6 +647,91 @@ test('artifact rejects unknown evidence and invalid metrics instead of inventing
 // 原生图表配置与证据绑定
 // -----------------------------------------------------------------------------
 
+test('monthly revenue fields require explicit mapping and leave query evidence unchanged', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'ava-chart-fields-'));
+  const runtime = await loaded();
+  try {
+    const data = [
+      { month: '2025-01', rows_cnt: 4, total_revenue: 30000 },
+      { month: '2025-02', rows_cnt: 4, total_revenue: 37500 },
+    ];
+    runtime.command = async (args, input) => {
+      if (args[0] === 'query') {
+        return { schema: Object.keys(data[0]).map((name) => ({ name })), data };
+      }
+      if (args[0] === 'viz') {
+        const spec = JSON.parse(input);
+        assert.deepEqual(spec.config.data, [
+          { category: '2025-01', value: 30000 },
+          { category: '2025-02', value: 37500 },
+        ]);
+        await writeFile(args.at(-1), '<html>chart</html>');
+        return { output: args.at(-1) };
+      }
+      return { datasetId: id, disposed: true };
+    };
+    const result = await runtime.query(
+      id,
+      'SELECT month, COUNT(*) AS rows_cnt, SUM(revenue) AS total_revenue FROM data GROUP BY month ORDER BY month',
+    );
+    const section = {
+      question: 'Monthly revenue',
+      conclusion: 'Verified',
+      queryId: result.queryId,
+      chart: { chartType: 'column', config: { axisYTitle: 'Revenue (USD)' } },
+    };
+    let next = 0;
+    const report = (extra = {}) =>
+      runtime.artifact({
+        output: join(directory, `${next++}.html`),
+        title: 'Revenue',
+        summary: 'Summary',
+        sections: [{ ...section, ...extra }],
+      });
+    const invalid = await report();
+    assert.match(invalid.chartErrors[0].message, /config\.data\.0\.category/);
+    assert.match(invalid.chartErrors[0].message, /chartFields/);
+    assert(!runtime.calls.some(({ args }) => args[0] === 'viz'));
+    const mapped = await report({ chartFields: { category: 'month', value: 'total_revenue' } });
+    assert.deepEqual(mapped.chartErrors, []);
+    const payload = JSON.parse(await readFile(mapped.dataOutput, 'utf8'));
+    assert.deepEqual(payload.queries[0].result.data, data);
+    assert.deepEqual(payload.sections[0].chartFields, {
+      category: 'month',
+      value: 'total_revenue',
+    });
+    const missing = await report({ chartFields: { category: 'month', value: 'missing' } });
+    assert.match(missing.chartErrors[0].message, /Unknown result field: missing/);
+    const conflicting = await report({
+      chartFields: { category: 'month' },
+      chartConfigField: 'month',
+    });
+    assert.match(conflicting.chartErrors[0].message, /not both/);
+    const empty = await report({ chartFields: {} });
+    assert.match(empty.chartErrors[0].message, /at least one/);
+  } finally {
+    await runtime.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('standalone charts reject missing native fields and numeric strings before AVA runs', async () => {
+  const runtime = new StubRuntime();
+  for (const spec of [
+    { chartType: 'column', config: { data: [{ month: 'Jan', total: 10 }] } },
+    { chartType: 'line', config: { data: [{ category: 'Jan', value: 10 }] } },
+    { chartType: 'column', config: { data: [{ category: 'Jan', value: '10' }] } },
+    { chartType: 'histogram', config: { data: [{ value: 10 }] } },
+    { chartType: 'liquid', config: { percent: 25 } },
+    { chartType: 'pie', config: { data: [{ category: 'Jan', value: -1 }] } },
+    { chartType: 'column', config: { type: 'line', data: [{ category: 'Jan', value: 10 }] } },
+  ]) {
+    await assert.rejects(runtime.viz(spec, '/tmp/invalid-chart.html'));
+  }
+  assert.equal(runtime.calls.length, 0);
+  await runtime.close();
+});
+
 test('artifact passes native AVA options and saved rows, retaining evidence on chart failure or truncation', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'ava-artifact-'));
   const runtime = await loaded();
@@ -769,7 +886,7 @@ test('artifact refuses inline chart data and ambiguous config evidence without c
     for (const key of ['data', 'categories', 'series', 'percent']) {
       const rejected = await report(result.queryId, {
         chartType: 'pie',
-        config: { [key]: 'invented' },
+        config: { [key]: key === 'data' ? [{ category: 'invented', value: 1 }] : 'invented' },
       });
       assert.match(rejected.chartErrors[0].message, /must come from query evidence/);
     }

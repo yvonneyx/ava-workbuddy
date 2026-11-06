@@ -130,8 +130,26 @@ AVA 自动为 ClickHouse、Supabase 选择远程引擎，其余使用 DuckDB。`
   出。输出使用新 `.html` 绝对路径，父目录须存在；HTML 和 JSON 均不可覆盖。
 - 需要保留的证据须在关闭 Runtime 或移出缓存前生成报告或导出。保存的文件不能恢复有效 `queryId`；新
   Runtime 需重新查询。
-- 图表使用 `{ chartType, config }`，从查询证据绑定数据；特殊数据形状使用 `chartConfigField`。
-  `ArtifactInput` 字段与校验以[输入 schema](../src/artifact.ts) 为准，原生数据形状由
+- 图表使用 `{ chartType, config }`。MCP schema 按 19 种图表类型分别声明原生字段与数据形状，独立
+  `viz()` 必须提供完整配置。字段缺失、数值字符串或配置中的 `type` 不匹配会在渲染前拒绝。
+- 报告用 `chartFields` 显式绑定原生字段到查询列，例如查询返回 `month`、`rows_cnt`、`total_revenue`：
+
+  ```ts
+  {
+    question: '每个月的收入是多少？',
+    conclusion: '1 月 30000，2 月 37500。',
+    queryId: result.queryId,
+    chart: { chartType: 'column', config: { axisYTitle: '收入（美元）' } },
+    chartFields: { category: 'month', value: 'total_revenue' },
+  }
+  ```
+
+  映射只影响图表数据，结果表与证据保留原列名。省略映射时须使用原生字段：柱状图 `category/value`，
+  折线图 `time/value`。不猜测字段，也不自动转换数值。
+
+- 特殊数据形状使用 `chartConfigField`，不能与 `chartFields` 混用。绑定后的配置仍按同一份图表 schema
+  校验；不匹配记录在 `chartErrors`，结果表与 SQL 保留，不会把无效配置当作成功图表。 `ArtifactInput`
+  字段与校验以[输入 schema](../src/artifact.ts) 为准，原生数据形状由
   [共享图表 schema](../src/contracts.ts) 说明。
 - 图表失败时报告仍保留表格和 SQL，错误见 `chartErrors`。工具不核验结论文案； `chartPreviewVerified`
   返回 false，宿主需另行验证图表预览。

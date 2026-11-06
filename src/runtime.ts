@@ -7,6 +7,7 @@ import { AVACommandError, runCommand, outputPath } from './ava.js';
 import { prepareSource, sourceError } from './source.js';
 import {
   sourceResult,
+  chartSpec,
   schemaResult,
   queryResult,
   semanticResult,
@@ -176,7 +177,7 @@ export class Runtime {
       this.#execute(
         ['viz', '--spec', '-', '--output', outputPath(output)],
         vizResult,
-        JSON.stringify(spec),
+        JSON.stringify(chartSpec.parse(spec)),
       ),
     );
   }

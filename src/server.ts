@@ -201,6 +201,9 @@ export function createServer(runtime = new Runtime()) {
       'chartType and config, not syntax. Absolute output path must be new; parent ' +
       'directory must exist. HTML needs network for GPT-Vis; generation does not ' +
       'prove visual rendering. Standalone config must include the verified data. ' +
+      'Use the native fields defined for chartType, e.g. category/value for column, ' +
+      'time/value for line; numeric values must be JSON numbers. Arbitrary query column ' +
+      'names are not inferred. For reports, use ava_artifact with chartFields instead. ' +
       'Use for a requested standalone chart; simple questions can be answered directly. ' +
       'Preview labels, values and units before claiming visual checks.',
     z.object({
@@ -216,7 +219,9 @@ export function createServer(runtime = new Runtime()) {
       'queryIds from this connection, including disposed datasets. Truncated ' +
       'results are not plotted; chartErrors preserves failures while tables and ' +
       'SQL remain available. Return paths are output and dataOutput. Sharing the ' +
-      'HTML shares its query results. This does not independently verify assistant ' +
+      'HTML shares its query results. Bind query columns explicitly with chartFields ' +
+      '(native field -> query column), or return native column aliases in SQL. ' +
+      'This does not independently verify assistant ' +
       'conclusions or browser rendering. Keep each question with its queryId; retain ' +
       'earlier questions and evidence needed for follow-up reports. SQL and results ' +
       'are saved automatically; avoid duplicate exports unless requested. Deliver ' +

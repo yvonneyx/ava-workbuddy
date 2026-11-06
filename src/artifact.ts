@@ -3,7 +3,7 @@ import { extname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { z } from 'zod/v4';
 import { outputPath } from './ava.js';
-import { chartSpec, type ChartSpec, type QueryResult } from './contracts.js';
+import { artifactChartSpec, chartSpec, type ChartSpec, type QueryResult } from './contracts.js';
 
 // -----------------------------------------------------------------------------
 // 报告输入协议
@@ -50,15 +50,26 @@ export const artifactInput = z
             question: text.max(500).describe('Question answered by this section'),
             conclusion: text.describe("Finding supported by this section's query evidence"),
             queryId,
-            chart: chartSpec
+            chart: artifactChartSpec
               .optional()
               .describe(
-                'Native AVA chart; saved query rows supply config.data by default. ' +
+                'Native AVA chart; query rows must match the native fields for this chartType. ' +
+                  'Use chartFields to bind existing result columns; otherwise rows supply config.data unchanged. ' +
                   'Do not supply config.data, categories, series or percent inline. ' +
                   'For example, a column chart can use a query returning ' +
                   'month AS category, CAST(SUM(revenue) AS DOUBLE) AS value ' +
                   'grouped and ordered by month, with chart={chartType:"column", ' +
                   'config:{axisYTitle:"Revenue (USD)"}}.',
+              ),
+            chartFields: z
+              .record(z.string(), text.max(200))
+              .optional()
+              .describe(
+                'Explicit native chart field -> exact query column mapping, e.g. ' +
+                  '{category:"month",value:"total_revenue"} for column/bar/pie; ' +
+                  '{time:"month",value:"total_revenue"} for line/area. ' +
+                  'Only these fields are projected into chart rows; saved evidence is unchanged. ' +
+                  'No guessing or numeric conversion. Cannot combine with chartConfigField.',
               ),
             chartConfigField: text
               .max(200)
@@ -119,7 +130,7 @@ function bindChart(
   if (evidence.result.truncated) {
     throw new Error('查询结果已截断，暂不绘图；请先获取完整的聚合结果。');
   }
-  // 这里只绑定证据；字段命名、数值类型与图表含义由 SQL 和 AVA 配置决定。
+  // 显式投影图表字段，保留证据的原始列名与数值；不猜测字段或转换单位。
   const chart = section.chart!;
   for (const key of ['data', 'categories', 'series', 'percent']) {
     if (Object.hasOwn(chart.config, key)) {
@@ -130,14 +141,43 @@ function bindChart(
     throw new Error('查询没有返回数据，暂不绘图。');
   }
   let bound: Record<string, unknown> = { data: evidence.result.data };
+  if (section.chartFields !== undefined) {
+    if (section.chartConfigField !== undefined) {
+      throw new Error('Use either chartFields or chartConfigField, not both.');
+    }
+    const fields = Object.entries(section.chartFields);
+    if (!fields.length) {
+      throw new Error('chartFields must map at least one native chart field to a query column.');
+    }
+    fields.forEach(([, source]) => field(evidence, source));
+    bound = {
+      data: evidence.result.data.map((row) =>
+        Object.fromEntries(fields.map(([native, source]) => [native, row[source]])),
+      ),
+    };
+  }
   if (section.chartConfigField !== undefined) {
     field(evidence, section.chartConfigField);
     if (evidence.result.data.length !== 1) {
       throw new Error('chartConfigField requires a single-row query result.');
     }
-    bound = chartSpec.shape.config.parse(evidence.result.data[0]![section.chartConfigField]);
+    bound = z
+      .record(z.string(), z.unknown())
+      .parse(evidence.result.data[0]![section.chartConfigField]);
   }
-  return { chartType: chart.chartType, config: { ...chart.config, ...bound } };
+  const parsed = chartSpec.safeParse({
+    chartType: chart.chartType,
+    config: { ...chart.config, ...bound },
+  });
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0]!;
+    throw new Error(
+      `Invalid ${chart.chartType} chart at ${issue.path.join('.')}: ${issue.message}. ` +
+        'Bind native fields with chartFields or SQL aliases; numeric values must be numbers. ' +
+        'Use chartConfigField for non-row data.',
+    );
+  }
+  return parsed.data;
 }
 
 // -----------------------------------------------------------------------------
