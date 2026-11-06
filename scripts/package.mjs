@@ -43,7 +43,7 @@ try {
 
   for (const [kind, directory] of [
     ['connector', 'ava-connector'],
-    ['expert', 'ava-workbuddy-assistant'],
+    ['expert', 'ava-data-analyst'],
   ]) {
     const destination = join(staging, directory);
     await mkdir(destination);
@@ -61,7 +61,7 @@ try {
     }
     await writeFile(
       join(destination, 'README.md'),
-      `# AVA WorkBuddy ${kind} ${metadata.version}\n\n` +
+      `# AVA Data Analyst ${kind} ${metadata.version}\n\n` +
         `${metadata.homepage}\n\n` +
         'Requires macOS/Linux and WorkBuddy 5.0.0+.\n\n' +
         'This is a community integration; no additional model key is required. ' +

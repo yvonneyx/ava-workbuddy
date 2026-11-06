@@ -24,9 +24,9 @@ assert(!files.some((path) => /\/(?:examples|templates|avatars|skills)\//.test(pa
 // 分发路径可以不同，MCP 配置和资源必须与维护源逐字节一致。
 const copies = [
   ['connector', 'ava-connector/icon.svg', 'public/icon.svg'],
-  ['expert', 'ava-workbuddy-assistant/avatars/expert.png', 'public/avatars/expert.png'],
+  ['expert', 'ava-data-analyst/avatars/expert.png', 'public/avatars/expert.png'],
   ['connector', 'ava-connector/mcp.json', 'connector/mcp.json'],
-  ['expert', 'ava-workbuddy-assistant/.mcp.json', 'connector/mcp.json'],
+  ['expert', 'ava-data-analyst/.mcp.json', 'connector/mcp.json'],
 ];
 const archives = (await readdir(join(root, 'dist'))).filter((name) => /\.(tgz|zip)$/.test(name));
 assert.deepEqual(archives.sort(), [

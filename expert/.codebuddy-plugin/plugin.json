@@ -1,17 +1,17 @@
 {
-  "name": "ava-workbuddy-assistant",
+  "name": "ava-data-analyst",
   "version": "1.0.0",
   "description": "Explore files, databases, inline data and Feishu/Lark Bitable with AVA. Answer questions with verified results, visualizations and traceable reports.",
   "author": {
     "name": "yvonneyx",
     "email": "zhuyuxin0627@gmail.com"
   },
-  "agents": ["./agents/ava-workbuddy-assistant.md"],
+  "agents": ["./agents/ava-data-analyst.md"],
   "expertType": "agent",
-  "agentName": "ava-workbuddy-assistant",
+  "agentName": "ava-data-analyst",
   "displayName": {
-    "zh": "AVA 数据分析助手",
-    "en": "AVA Data Analysis Assistant"
+    "zh": "AVA 数据分析师",
+    "en": "AVA Data Analyst"
   },
   "profession": {
     "zh": "数据分析师",
@@ -27,7 +27,7 @@
     "zh": "分析我提供的数据，概括主要特征、值得关注的问题和可继续探索的方向。",
     "en": "Explore the data I provide, summarize its main characteristics, and identify noteworthy issues and useful follow-up questions."
   },
-  "plugin": "ava-workbuddy-assistant",
+  "plugin": "ava-data-analyst",
   "tags": [
     {
       "zh": "数据探索",

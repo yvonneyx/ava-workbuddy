@@ -6,7 +6,7 @@
 HTML 报告。
 
 WorkBuddy 理解问题并编写 SQL，AVA 执行计算和制图。结构化数据分析无需额外模型 API Key；原生 `text` 数
-据源的文本提取需要配置模型。本仓库提供 MCP 连接器和「AVA 数据分析助手」专家包。
+据源的文本提取需要配置模型。本仓库提供 MCP 连接器和「AVA 数据分析师」专家包。
 
 支持 macOS / Linux、Node.js 22.13+、WorkBuddy 5.0.0+。
 
