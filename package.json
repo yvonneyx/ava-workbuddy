@@ -1,6 +1,6 @@
 {
   "name": "ava-workbuddy",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Local AVA data analysis for WorkBuddy: MCP, Skill, and expert packages",
   "type": "module",
   "license": "MIT",

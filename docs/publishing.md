@@ -8,11 +8,11 @@
 
 本仓库根据官方专家包文档准备 ZIP，字段名称和步骤以平台显示为准。v0.1.3 已完成实际表单上传并提交审核；平台审核与客户端验收独立于代码测试。
 
-1. 从本仓库 GitHub Releases 下载 `ava-workbuddy-expert-0.2.0.zip`，可用同页 `SHA256SUMS` 核对。
+1. 从本仓库 GitHub Releases 下载 `ava-workbuddy-expert-0.2.1.zip`，可用同页 `SHA256SUMS` 核对。
 2. 在创建专家流程中上传该 ZIP。它包含 `.codebuddy-plugin/plugin.json`、Agent 定义、512px PNG 头像、完整 Skill，以及内置 MCP 的 `.mcp.json`。
-平台要求 `profession.zh`（专家职称）和 `name`（内部标识）在同类型资产中唯一。已有草稿占用时，应修改代码包内对应字段后重新上传，不能仅修改页面花名。本包使用 `AVA 4.0 数据分析` 和 `ava-workbuddy-analyst`。
+平台要求 `profession.zh`（专家职称）和 `name`（内部标识）在同类型资产中唯一。已有草稿占用时，应修改代码包内对应字段后重新上传，不能仅修改页面花名。本包使用 `AVA 数据分析助手` 和 `ava-workbuddy-analyst`。
 
-3. 如表单要求手工补充，使用：名称「AVA 4.0 数据分析师」、专家职称「AVA 4.0 数据分析」、分类「数据智能 / 04-DataAI」、版本 `0.2.0`、作者 `yvonneyx`、主页 `https://github.com/yvonneyx/ava-workbuddy`。介绍与三个推荐问题以 `expert/.codebuddy-plugin/plugin.json` 为准。
+3. 如表单要求手工补充，使用：名称「AVA 数据分析助手」、专家职称「AVA 数据分析助手」、分类「数据智能 / 04-DataAI」、版本 `0.2.1`、作者 `yvonneyx`、主页 `https://github.com/yvonneyx/ava-workbuddy`。介绍与三个推荐问题以 `expert/.codebuddy-plugin/plugin.json` 为准。
 4. 在平台可用的预览/试用环节召唤专家。按内联引导连接其本地 MCP，等初次下载结束；确认发现 8 个 AVA 工具。
 5. 点击第一个推荐问题。核对收入 30,000 → 37,500 美元、增加 7,500（25%），并打开实际结果文件和 HTML。保存至工作空间时给 `ava_demo` 一个新的绝对输出目录。
 6. 上传一份自己的 CSV，再上传一份 XLSX，测试一次追问。确认 Excel 首次扩展下载、中文路径、图表 CDN、连接重启恢复在目标电脑上可用。

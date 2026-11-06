@@ -1,14 +1,14 @@
 {
   "name": "ava-workbuddy-analyst",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Analyze local business data with AVA and deliver verified results and charts.",
   "author": { "name": "yvonneyx", "email": "zhuyuxin0627@gmail.com" },
   "agents": ["./agents/ava-workbuddy-analyst.md"],
   "skills": ["./skills/ava"],
   "expertType": "agent",
   "agentName": "ava-workbuddy-analyst",
-  "displayName": { "zh": "AVA 4.0 数据分析师", "en": "AVA 4.0 Data Analyst" },
-  "profession": { "zh": "AVA 4.0 数据分析", "en": "AVA 4.0 Data Analysis" },
+  "displayName": { "zh": "AVA 数据分析助手", "en": "AVA Data Analysis Assistant" },
+  "profession": { "zh": "AVA 数据分析助手", "en": "AVA Data Analysis Assistant" },
   "displayDescription": {
     "zh": "上传本地表格，分析指标变化、核对业务口径，生成有据可查的结论、结果表与交互图表，支持继续追问。",
     "en": "Analyze local spreadsheets, verify business metrics, and deliver traceable findings, result tables, and interactive charts."

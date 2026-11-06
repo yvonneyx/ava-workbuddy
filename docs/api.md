@@ -5,7 +5,7 @@
 ## 安装
 
 ```sh
-npm install https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.2.0/ava-workbuddy-0.2.0.tgz
+npm install https://github.com/yvonneyx/ava-workbuddy/releases/download/v0.2.1/ava-workbuddy-0.2.1.tgz
 ```
 
 Release 的 TGZ 已编译，使用者不需要 TypeScript 编译器。源码开发者需要 `npm ci && npm run build`。不要安装 GitHub 自动生成的源码归档来直接运行 CLI。

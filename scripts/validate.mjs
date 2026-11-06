@@ -35,6 +35,8 @@ export async function validate() {
     const source = await readFile(resolve(root, 'expert', agent), 'utf8');
     const frontmatter = parse(source.split('---')[1]);
     assert.equal(frontmatter.name, plugin.agentName);
+    assert.deepEqual(frontmatter.displayName, plugin.displayName);
+    assert.deepEqual(frontmatter.profession, plugin.profession);
     assert(!('tools' in frontmatter), 'WorkBuddy assigns expert tool permissions.');
     for (const field of ['description', 'displayName', 'profession']) assert(frontmatter[field]);
   }
