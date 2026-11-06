@@ -31,11 +31,11 @@ npm run test:integration
 - 修改行为时补充能复现问题的测试。协议和安装方式变化必须跑集成测试与真实打包安装测试。
 - `expert/` 定义身份、表达偏好和展示信息，不重复分析步骤和工具参数。
 - 工具契约与原生图表数据形状统一写在 MCP 描述和输入 schema 中。
-- `skills/ava/` 只定义分析与交付流程，不另写工具或图表手册。
-- `connector/` 只维护连接配置和展示信息；`src/` 实现工具契约、执行与校验，不承担专家角色和交付文案。
+- 分析规则写入 MCP 工具描述。`instructions` 只作导航，其消费方式取决于客户端。
+- `connector/` 只维护连接配置和展示信息；`src/` 实现工具契约、执行与校验，不承担专家身份和语气。
 - `public/` 统一维护报告模板、图标和头像。生成报告时内嵌图标；打包时将资源复制到 WorkBuddy 约定的目
   录，不维护重复副本。
-- Skill 与 MCP 配置各维护一份，打包时组装。版本与安装地址保持一致。
+- MCP 配置维护一份，打包时组装。版本与安装地址保持一致。
 
 提交 PR 时说明触发场景、行为变化和实际执行的验证命令。保持修改聚焦，不提交 `lib/`、`dist/`、缓存或本
 机绝对路径。
@@ -51,12 +51,10 @@ npm run test:package
 最后一项会构建和打包，随后在新目录安装 TGZ，检查公开导入、TypeScript 声明、本地查询、完整报告和 CLI
 环境检查。真实 AVA 测试需要允许子进程和 Unix socket；Excel 和图表部分可能访问网络。
 
-参考依据：
-
-- [WorkBuddy 连接器](https://open.workbuddy.cn/docs/connector)
-- [WorkBuddy 技能规范](https://open.workbuddy.cn/docs/skill)
-- [Agent Skills 编写实践](https://agentskills.io/skill-creation/best-practices)
-
-保留 WorkBuddy 市场所需的 frontmatter。Skill 按实际任务补充分析流程，避免通用教程和重复工具说明。
+参考依据：[WorkBuddy 连接器](https://open.workbuddy.cn/docs/connector)、
+[专家规范](https://open.workbuddy.cn/docs/expert) 和
+[MCP 初始化说明](https://modelcontextprotocol.io/specification/2025-11-25/schema#initializeresult)。
+MCP 接入不要求独立 Skill；`instructions` 是否进入模型上下文由客户端决定，关键分析规则保留在工具描述
+中。
 
 发版流程见 [发布指南](docs/publishing.md)。GitHub 发版与 WorkBuddy 平台上架分别进行。

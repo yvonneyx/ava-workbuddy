@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
-import { join, dirname, relative } from 'node:path';
+import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import assert from 'node:assert/strict';
 import { root, metadata } from '../lib/metadata.js';
@@ -19,28 +19,25 @@ assert(
   !files.some((path) => /(?:CONTRIBUTING\.md|CHANGELOG\.md|docs\/publishing\.md)$/.test(path)),
 );
 assert(!files.some((path) => /(?:node_modules|\/tests?\/|\/scripts\/|\.env)/.test(path)));
-assert(!files.some((path) => /\/(?:examples|templates|avatars)\//.test(path)));
+assert(!files.some((path) => /\/(?:examples|templates|avatars|skills)\//.test(path)));
 
-// 分发路径可以不同，Skill、MCP 配置和资源必须与维护源逐字节一致。
+// 分发路径可以不同，MCP 配置和资源必须与维护源逐字节一致。
 const copies = [
   ['connector', 'ava-connector/icon.svg', 'public/icon.svg'],
   ['expert', 'ava-workbuddy-assistant/avatars/expert.png', 'public/avatars/expert.png'],
   ['connector', 'ava-connector/mcp.json', 'connector/mcp.json'],
   ['expert', 'ava-workbuddy-assistant/.mcp.json', 'connector/mcp.json'],
 ];
-const skillDirectory = join(root, 'skills/ava');
-for (const entry of await readdir(skillDirectory, { recursive: true, withFileTypes: true })) {
-  if (!entry.isFile()) {
-    continue;
-  }
-  const path = join(entry.parentPath, entry.name);
-  for (const [kind, prefix] of [
-    ['connector', 'ava-connector/skills/ava'],
-    ['expert', 'ava-workbuddy-assistant/skills/ava'],
-    ['skill', 'ava'],
-  ]) {
-    copies.push([kind, `${prefix}/${relative(skillDirectory, path)}`, relative(root, path)]);
-  }
+const archives = (await readdir(join(root, 'dist'))).filter((name) => /\.(tgz|zip)$/.test(name));
+assert.deepEqual(archives.sort(), [
+  `ava-workbuddy-${metadata.version}.tgz`,
+  `ava-workbuddy-connector-${metadata.version}.zip`,
+  `ava-workbuddy-expert-${metadata.version}.zip`,
+]);
+for (const kind of ['connector', 'expert']) {
+  const zip = join(root, 'dist', `ava-workbuddy-${kind}-${metadata.version}.zip`);
+  const entries = execFileSync('unzip', ['-Z1', zip], { encoding: 'utf8' }).split('\n');
+  assert(!entries.some((path) => /\/skills\//.test(path)), `${kind} contains a stale Skill`);
 }
 for (const [kind, entry, source] of copies) {
   const zip = join(root, 'dist', `ava-workbuddy-${kind}-${metadata.version}.zip`);

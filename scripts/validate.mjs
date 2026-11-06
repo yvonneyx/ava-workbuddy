@@ -14,8 +14,6 @@ export async function validate() {
   const connector = await json('connector/connector-meta.json');
   const mcp = await json('connector/mcp.json');
   const plugin = await json('expert/.codebuddy-plugin/plugin.json');
-  const skill = await readFile(join(root, 'skills/ava/SKILL.md'), 'utf8');
-  const skillFrontmatter = parse(skill.split('---')[1]);
 
   // -----------------------------------------------------------------------------
   // 连接器与 MCP 安装配置
@@ -59,14 +57,14 @@ export async function validate() {
       [...plugin.displayDescription.zh].length <= 50,
   );
   assert.equal(plugin.dependencies.mcpServers, './.mcp.json');
-  assert.deepEqual(plugin.skills, ['./skills/ava']);
+  assert(!('skills' in plugin), 'Analysis guidance is supplied by MCP.');
   for (const agent of plugin.agents) {
     const source = await readFile(resolve(root, 'expert', agent), 'utf8');
     const frontmatter = parse(source.split('---')[1]);
     assert.equal(frontmatter.name, plugin.agentName);
     assert.deepEqual(frontmatter.displayName, plugin.displayName);
     assert.deepEqual(frontmatter.profession, plugin.profession);
-    assert.deepEqual(frontmatter.skills, [skillFrontmatter.name]);
+    assert(!('skills' in frontmatter), 'The expert uses MCP tools without a separate Skill.');
     assert(!('tools' in frontmatter), 'WorkBuddy assigns expert tool permissions.');
     for (const field of ['description', 'displayName', 'profession']) {
       assert(frontmatter[field]);
@@ -74,22 +72,9 @@ export async function validate() {
   }
 
   // -----------------------------------------------------------------------------
-  // Skill 元信息与静态资源
+  // 静态资源
   // -----------------------------------------------------------------------------
 
-  for (const field of [
-    'name',
-    'display_name',
-    'display_name_en',
-    'description',
-    'description_zh',
-    'description_en',
-    'version',
-    'author',
-  ]) {
-    assert(skillFrontmatter[field], `Missing Skill ${field}`);
-  }
-  assert.equal(skillFrontmatter.version, metadata.version);
   await access(join(root, 'public/artifact.html'));
   await access(join(root, 'public/icon.svg'));
   const avatar = await readFile(join(root, 'public', plugin.avatar));

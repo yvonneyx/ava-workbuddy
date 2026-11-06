@@ -51,6 +51,7 @@ test(
     let id;
     try {
       const tools = await client.listTools();
+      assert(client.getInstructions()?.trim());
       assert.equal(tools.tools.length, 8);
       assert(!tools.tools.some((tool) => tool.name === 'ava_demo'));
       assert.equal((await call(client, 'ava_check')).avaVersion, '4.0.0');

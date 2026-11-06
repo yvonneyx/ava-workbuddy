@@ -207,6 +207,25 @@ test('embedded MCP close waits for an accepted tool before cleaning up its sessi
 // 业务定义与公开入口
 // -----------------------------------------------------------------------------
 
+test('MCP initialization advertises guidance and tools without a separate Skill', async () => {
+  const connection = createServer(new StubRuntime());
+  const client = new Client({ name: 'discovery-test', version: '1.0.0' });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  try {
+    await Promise.all([
+      connection.server.connect(serverTransport),
+      client.connect(clientTransport),
+    ]);
+    assert(client.getInstructions()?.trim());
+    const { tools } = await client.listTools();
+    assert.equal(tools.length, 8);
+    assert(tools.every((tool) => tool.description?.trim() && tool.inputSchema.type === 'object'));
+  } finally {
+    await client.close();
+    await connection.close();
+  }
+});
+
 test('semantic replacement writes private JSON, then removes it on failure', async () => {
   const runtime = await loaded();
   let path;

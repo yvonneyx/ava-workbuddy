@@ -38,13 +38,12 @@ try {
   });
 
   // -----------------------------------------------------------------------------
-  // WorkBuddy 连接器、专家与 Skill 包
+  // WorkBuddy 连接器与专家包
   // -----------------------------------------------------------------------------
 
   for (const [kind, directory] of [
     ['connector', 'ava-connector'],
     ['expert', 'ava-workbuddy-assistant'],
-    ['skill', 'ava'],
   ]) {
     const destination = join(staging, directory);
     await mkdir(destination);
@@ -57,21 +56,17 @@ try {
       await cp(join(root, 'public/avatars'), join(destination, 'avatars'), { recursive: true });
       await cp(join(root, 'connector/mcp.json'), join(destination, '.mcp.json'));
     }
-    const skillDestination = kind === 'skill' ? destination : join(destination, 'skills/ava');
-    await cp(join(root, 'skills/ava'), skillDestination, { recursive: true });
     for (const file of ['LICENSE', 'NOTICE']) {
       await cp(join(root, file), join(destination, file));
     }
-    if (kind !== 'skill') {
-      await writeFile(
-        join(destination, 'README.md'),
-        `# AVA WorkBuddy ${kind} ${metadata.version}\n\n` +
-          `${metadata.homepage}\n\n` +
-          'Requires macOS/Linux and WorkBuddy 5.0.0+.\n\n' +
-          'This is a community integration; no additional model key is required. ' +
-          'See NOTICE for upstream attribution.\n',
-      );
-    }
+    await writeFile(
+      join(destination, 'README.md'),
+      `# AVA WorkBuddy ${kind} ${metadata.version}\n\n` +
+        `${metadata.homepage}\n\n` +
+        'Requires macOS/Linux and WorkBuddy 5.0.0+.\n\n' +
+        'This is a community integration; no additional model key is required. ' +
+        'See NOTICE for upstream attribution.\n',
+    );
     const archive = join(dist, `ava-workbuddy-${kind}-${metadata.version}.zip`);
     // Explicit directory input includes the dotfiles required by WorkBuddy expert packages.
     execFileSync('zip', ['-q', '-r', '-X', archive, directory], { cwd: staging });

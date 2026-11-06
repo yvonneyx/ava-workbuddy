@@ -7,7 +7,6 @@
     "email": "zhuyuxin0627@gmail.com"
   },
   "agents": ["./agents/ava-workbuddy-assistant.md"],
-  "skills": ["./skills/ava"],
   "expertType": "agent",
   "agentName": "ava-workbuddy-assistant",
   "displayName": {

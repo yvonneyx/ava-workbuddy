@@ -2,8 +2,9 @@
 
 ## 未发布
 
-- MCP schema 集中维护工具参数、原生图表数据形状与证据绑定说明；Skill 只保留分析与交付流程，删除重复
-  工具手册、图表参考和独立分析规则文件。
+- 分析流程迁入 MCP 工具描述，初始化 `instructions` 提供服务导航。删除独立 Skill、专家的 Skill 依赖和
+  Skill 分发包；当前只构建运行 TGZ、连接器 ZIP 和专家 ZIP。工具参数、原生图表形状及证据绑定统一由
+  MCP schema 说明。
 
 - 静态资源集中到 `public/`；demo、模拟数据和 SQL 归入 `tests/`。移除生产端的 `ava_demo`、CLI
   `demo/smoke` 和库 `runDemo/smoke` 导出，正式工具保留分析与报告能力。统一换行、核心注释与职责分隔线
