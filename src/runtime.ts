@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod/v4';
 import { AVACommandError, runCommand, outputPath } from './ava.js';
-import { prepareSource, sourceErrorRedactor } from './source.js';
+import { isolateSource, prepareSource, sourceErrorRedactor } from './source.js';
 import {
   sourceResult,
   chartSpec,
@@ -31,6 +31,7 @@ export class Runtime {
   // -----------------------------------------------------------------------------
 
   #sources = new Map<string, string>();
+  #directories = new Map<string, string>();
   #redactErrors = new Map<string, ReturnType<typeof sourceErrorRedactor>>();
   #queries = new Map<string, QueryEvidence>();
   #busy = new Set<string>();
@@ -39,8 +40,8 @@ export class Runtime {
   #cleanup: Promise<CleanupReport> | undefined;
 
   /** @internal 子进程边界，仅在隔离测试中替换。 */
-  protected invoke(args: string[], input?: string): Promise<unknown> {
-    return runCommand(args, input);
+  protected invoke(args: string[], input?: string, directory?: string): Promise<unknown> {
+    return runCommand(args, input, directory);
   }
 
   #run<T>(operation: () => Promise<T>): Promise<T> {
@@ -61,8 +62,9 @@ export class Runtime {
     args: string[],
     schema: S,
     input?: string,
+    directory = this.#directories.get(args[1] ?? ''),
   ): Promise<z.output<S>> {
-    const result = await this.invoke(args, input);
+    const result = await this.invoke(args, input, directory);
     const parsed = schema.safeParse(result);
     if (!parsed.success) {
       throw new AVACommandError(
@@ -110,13 +112,30 @@ export class Runtime {
     return this.#run(async () => {
       const { config, label } = await prepareSource(input, type);
       const redactError = sourceErrorRedactor(config);
+      let directory: string | undefined;
       try {
-        const result = await this.#execute(['source', '-'], sourceResult, JSON.stringify(config));
+        const isolated = await isolateSource(config);
+        directory = isolated.directory;
+        const result = await this.#execute(
+          ['source', '-'],
+          sourceResult,
+          JSON.stringify(isolated.config),
+          directory,
+        );
         this.#sources.set(result.datasetId, label);
+        this.#directories.set(result.datasetId, directory);
         this.#redactErrors.set(result.datasetId, redactError);
         return result;
       } catch (error) {
-        throw redactError(error);
+        const failure = redactError(error);
+        if (directory) {
+          if (error instanceof AVACommandError && error.uncertain) {
+            failure.message += `\nSource isolation directory retained: ${directory}`;
+          } else {
+            await rm(directory, { recursive: true, force: true });
+          }
+        }
+        throw failure;
       }
     });
   }
@@ -202,12 +221,19 @@ export class Runtime {
   // -----------------------------------------------------------------------------
 
   dispose(id: string) {
-    return this.#session(id, async () => {
-      const result = await this.#execute(['dispose', id], disposeResult);
-      this.#sources.delete(id);
-      this.#redactErrors.delete(id);
-      return result;
-    });
+    return this.#session(id, () => this.#release(id));
+  }
+
+  async #release(id: string) {
+    const result = this.#sources.has(id)
+      ? await this.#execute(['dispose', id], disposeResult)
+      : { datasetId: id, disposed: true as const };
+    // 先确认 AVA 已释放；目录清理失败时 close() 仍可重试本地清理。
+    this.#sources.delete(id);
+    await rm(this.#directories.get(id)!, { recursive: true, force: true });
+    this.#directories.delete(id);
+    this.#redactErrors.delete(id);
+    return result;
   }
 
   /** 停止接收新任务，等待已接受的任务，再释放确定空闲的会话。 */
@@ -215,13 +241,12 @@ export class Runtime {
     this.#cleanup ??= Promise.resolve().then(async () => {
       await Promise.allSettled([...this.#pending]);
       const report: CleanupReport = { disposed: [], retained: [], errors: [] };
-      for (const id of this.#sources.keys()) {
+      for (const id of this.#directories.keys()) {
         if (this.#uncertain.has(id)) {
           continue;
         }
         try {
-          await this.#execute(['dispose', id], disposeResult);
-          this.#sources.delete(id);
+          await this.#release(id);
           report.disposed.push(id);
         } catch (error) {
           report.errors.push({
@@ -230,7 +255,7 @@ export class Runtime {
           });
         }
       }
-      report.retained = [...this.#sources.keys()];
+      report.retained = [...this.#directories.keys()];
       this.#queries.clear();
       this.#redactErrors.clear();
       return report;

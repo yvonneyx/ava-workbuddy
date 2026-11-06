@@ -15,7 +15,7 @@ import { once } from 'node:events';
 import { DatabaseSync } from 'node:sqlite';
 import { DuckDBInstance } from '@duckdb/node-api';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 import { root } from '../lib/metadata.js';
@@ -108,6 +108,7 @@ test(
     const connection = await connect();
     const client = connection.client;
     const json = join(directory, '数据.json');
+    const unrelated = join(directory, 'unrelated-private.txt');
     const parquet = join(directory, 'data.parquet');
     const sqlite = join(directory, 'data.sqlite3');
     const remote = createServer(async (request, response) => {
@@ -128,6 +129,7 @@ test(
       response.end(await readFile(file));
     });
     try {
+      await writeFile(unrelated, 'DUMMY_PRIVATE_CONTENT');
       await writeFile(json, JSON.stringify([{ value: 1 }, { value: 2 }]));
       const database = new DatabaseSync(sqlite);
       try {
@@ -188,6 +190,7 @@ test(
       ];
       for (const input of inputs) {
         const { datasetId } = await call(client, 'ava_source', input);
+        let workspace;
         try {
           const schema = await call(client, 'ava_schema', { datasetId });
           const table = schema.models[0].tableReference.table.replaceAll('"', '""');
@@ -196,6 +199,22 @@ test(
             sql: `SELECT SUM(value) AS total FROM "${table}"`,
           });
           assert.equal(Number(result.data[0].total), 3);
+          const storage = await call(client, 'ava_query', {
+            datasetId,
+            sql: "SELECT current_setting('temp_directory') AS path",
+          });
+          workspace = dirname(storage.data[0].path);
+          assert.notEqual(workspace, directory);
+          assert.equal((await stat(workspace)).mode & 0o777, 0o700);
+          const denied = await client.callTool({
+            name: 'ava_query',
+            arguments: {
+              datasetId,
+              sql: `SELECT content FROM read_text('${unrelated.replaceAll("'", "''")}')`,
+            },
+          });
+          assert.equal(denied.isError, true, 'Query must not read an unrelated local file');
+          assert.match(denied.content[0].text, /disabled|permission|not allowed/i);
           if (input.config?.type === 'json-file') {
             const report = await call(client, 'ava_artifact', {
               output: join(directory, 'remote.html'),
@@ -209,6 +228,7 @@ test(
           }
         } finally {
           await call(client, 'ava_dispose', { datasetId });
+          if (workspace) await assert.rejects(access(workspace), { code: 'ENOENT' });
         }
       }
       const excel = await call(client, 'ava_source', {
@@ -220,6 +240,15 @@ test(
           },
         },
       });
+      const excelDenied = await client.callTool({
+        name: 'ava_query',
+        arguments: {
+          ...excel,
+          sql: `SELECT content FROM read_text('${unrelated.replaceAll("'", "''")}')`,
+        },
+      });
+      assert.equal(excelDenied.isError, true);
+      assert.match(excelDenied.content[0].text, /disabled|permission|not allowed/i);
       await call(client, 'ava_dispose', excel);
       const failed = await client.callTool({
         name: 'ava_source',
@@ -247,6 +276,29 @@ test(
 // -----------------------------------------------------------------------------
 // 完整链路：文件、查询、图表、报告与重启
 // -----------------------------------------------------------------------------
+
+test('SQLite isolation includes committed WAL data and keeps a stable snapshot', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'ava-wal-'));
+  const path = join(directory, 'live.sqlite');
+  const writer = new DatabaseSync(path);
+  const runtime = new Runtime();
+  try {
+    writer.exec(
+      'PRAGMA journal_mode=WAL; CREATE TABLE sales(value INTEGER); ' +
+        'INSERT INTO sales VALUES(1),(2)',
+    );
+    assert((await stat(path + '-wal')).size > 0);
+    const source = await runtime.source(path);
+    writer.exec('INSERT INTO sales VALUES(9)');
+    const result = await runtime.query(source.datasetId, 'SELECT SUM(value) AS total FROM sales');
+    assert.equal(Number(result.data[0].total), 3);
+    assert.equal(writer.prepare('SELECT SUM(value) AS total FROM sales').get().total, 12);
+  } finally {
+    await runtime.close();
+    writer.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 
 test(
   'MCP first use, CSV/XLSX, read-only queries, charts, errors, and restart',
@@ -511,6 +563,10 @@ test(
       const expired = await client.callTool({ name: 'ava_schema', arguments: { datasetId: id } });
       assert.equal(expired.isError, true);
       id = (await call(client, 'ava_source', { path: file })).datasetId;
+      const storage = await call(client, 'ava_query', {
+        datasetId: id,
+        sql: "SELECT current_setting('temp_directory') AS path",
+      });
       await client.close();
 
       // -----------------------------------------------------------------------------
@@ -518,7 +574,7 @@ test(
       // -----------------------------------------------------------------------------
 
       // The transport closes the parent; its idle AVA session must be reaped.
-      const socketDirectory = join(tmpdir(), `ava-${id}`);
+      const socketDirectory = dirname(storage.data[0].path);
       for (let attempt = 0; attempt < 100; attempt++) {
         try {
           await access(socketDirectory);

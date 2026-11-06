@@ -1,9 +1,19 @@
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
+import {
+  access,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  stat,
+  symlink,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { AVACommandError, checkEnvironment, Runtime } from '../lib/index.js';
 import { outputPath, sourcePath } from '../lib/ava.js';
 import { prepareSource } from '../lib/source.js';
@@ -20,12 +30,18 @@ import { Client, InMemoryTransport } from '@modelcontextprotocol/client';
 const id = 'ds_test_012345abcdef';
 const file = join(root, 'tests/fixtures/sales.csv');
 const rows = { schema: [{ name: 'value' }], data: [{ value: 1 }], rowCount: 1 };
+const directories = new Set();
+// 桩测试没有真实后台任务，结束后可清理模拟超时保留的目录。
+after(async () => {
+  await Promise.all([...directories].map((path) => rm(path, { recursive: true, force: true })));
+});
 class StubRuntime extends Runtime {
   calls = [];
   command = async ([name]) =>
     name === 'source' ? { datasetId: id } : { datasetId: id, disposed: true };
-  invoke(args, input) {
-    this.calls.push({ args, input });
+  invoke(args, input, directory) {
+    if (directory) directories.add(directory);
+    this.calls.push({ args, input, directory });
     return this.command(args, input);
   }
 }
@@ -125,7 +141,14 @@ test('infer all AVA file formats and allow explicit formats for extensionless fi
   }
 });
 
-test('all 14 native source types preserve options and send credentials only via stdin', async () => {
+test('all 14 native source types preserve options and send credentials only via stdin', async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'ava-sqlite-config-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const sqlite = join(directory, 'data.sqlite');
+  const { DatabaseSync } = await import('node:sqlite');
+  const database = new DatabaseSync(sqlite);
+  database.exec('CREATE TABLE data (value INTEGER); INSERT INTO data VALUES (1)');
+  database.close();
   const configs = [
     {
       type: 'csv-file',
@@ -146,7 +169,7 @@ test('all 14 native source types preserve options and send credentials only via 
         sheets: [{ sheet: 'Sheet1', range: 'A1:B3' }],
       },
     },
-    { type: 'sqlite', options: { path: file } },
+    { type: 'sqlite', options: { path: sqlite } },
     { type: 'csv', options: { csv: 'x\n1', options: { all_varchar: true } } },
     { type: 'json', options: { data: [{ x: 1 }] } },
     { type: 'text', options: { text: 'Revenue is 10.' } },
@@ -192,13 +215,66 @@ test('all 14 native source types preserve options and send credentials only via 
       assert.equal(sent.type, config.type);
       assert.deepEqual(sent.options, {
         ...config.options,
-        ...(config.type === 'sqlite' ? { path: await sourcePath(file) } : {}),
+        ...(config.type === 'sqlite'
+          ? { path: join(runtime.calls[0].directory, basename(sqlite)) }
+          : {}),
       });
       assert.deepEqual(config, before);
     } finally {
       await runtime.close();
     }
   }
+});
+
+test('local source copies are private, stable, and removed after disposal', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'ava-input-'));
+  const runtime = new StubRuntime();
+  try {
+    const file = join(directory, '销售.csv');
+    await writeFile(file, 'value\n1');
+    await runtime.source(file);
+    const staged = JSON.parse(runtime.calls[0].input).options.path;
+    const workspace = runtime.calls[0].directory;
+    assert.equal(staged, join(workspace, basename(file)));
+    assert.equal((await stat(workspace)).mode & 0o777, 0o700);
+    assert.equal((await stat(staged)).mode & 0o777, 0o600);
+    await writeFile(file, 'value\n2');
+    assert.equal(await readFile(staged, 'utf8'), 'value\n1');
+    runtime.command = async ([command]) =>
+      command === 'query' ? rows : { datasetId: id, disposed: true };
+    await runtime.query(id, 'SELECT value FROM data');
+    assert.equal(runtime.calls.at(-1).directory, workspace);
+    await runtime.dispose(id);
+    await assert.rejects(access(workspace), { code: 'ENOENT' });
+    assert.equal(await readFile(file, 'utf8'), 'value\n2');
+  } finally {
+    await runtime.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('source isolation is removed on known failures and retained on uncertain outcomes', async () => {
+  for (const uncertain of [false, true]) {
+    const runtime = new StubRuntime();
+    runtime.command = async () => {
+      throw new AVACommandError('Source failed', uncertain);
+    };
+    await assert.rejects(runtime.source({ type: 'json', options: { data: [{ value: 1 }] } }));
+    const workspace = runtime.calls[0].directory;
+    if (uncertain) {
+      await access(workspace);
+    } else {
+      await assert.rejects(access(workspace), { code: 'ENOENT' });
+    }
+    await runtime.close();
+  }
+});
+
+test('close removes private source directories after releasing the datasets', async () => {
+  const runtime = await loaded();
+  runtime.calls = [];
+  assert.deepEqual(await runtime.close(), { disposed: [id], retained: [], errors: [] });
+  await assert.rejects(access(runtime.calls[0].directory), { code: 'ENOENT' });
 });
 
 test('config files are distinct from JSON data and cannot be combined with type', async () => {
@@ -358,9 +434,10 @@ test('prevent concurrent commands and preserve SQL as stdin rather than shell in
   assert.match(result.queryId, /^q_/);
   const { queryId, ...data } = result;
   assert.deepEqual(data, rows);
-  assert.deepEqual(runtime.calls, [
-    { args: ['query', id, '--dsl', '-', '--max-rows', '10'], input: sql },
-  ]);
+  assert.deepEqual(
+    runtime.calls.map(({ args, input }) => ({ args, input })),
+    [{ args: ['query', id, '--dsl', '-', '--max-rows', '10'], input: sql }],
+  );
 });
 
 test('validate SQL byte limits and row limits before invoking AVA', async () => {
@@ -1003,11 +1080,7 @@ test('report metric rendering preserves large integers and precise decimal strin
   try {
     runtime.command = async () => ({
       schema: [{ name: 'value' }],
-      data: [
-        { value: '9007199254740993' },
-        { value: '0.123456789123456789' },
-        { value: 67500 },
-      ],
+      data: [{ value: '9007199254740993' }, { value: '0.123456789123456789' }, { value: 67500 }],
     });
     const result = await runtime.query(id, 'SELECT value FROM data');
     const artifact = await runtime.artifact({
@@ -1079,10 +1152,12 @@ test('different report fields use byte-identical templates with a single JSON da
       assert.deepEqual(embedded, payload);
       assert(html.includes(`src="${logoSource}"`));
       assert.equal(
-        html.replace(`src="${logoSource}"`, 'src="icon.svg"').replace(
-          /<script id="artifact-data" type="application\/json">.*?<\/script>/s,
-          '<!-- ARTIFACT_DATA -->',
-        ),
+        html
+          .replace(`src="${logoSource}"`, 'src="icon.svg"')
+          .replace(
+            /<script id="artifact-data" type="application\/json">.*?<\/script>/s,
+            '<!-- ARTIFACT_DATA -->',
+          ),
         template,
       );
     }

@@ -105,7 +105,7 @@ export class AVACommandError extends Error {
   }
 }
 
-export function runCommand(args: string[], input?: string): Promise<unknown> {
+export function runCommand(args: string[], input?: string, directory?: string): Promise<unknown> {
   checkEnvironment();
   return new Promise((resolve, reject) => {
     // 使用参数数组和 stdin，保留原始 SQL/JSON，避免 shell 拼接。
@@ -113,7 +113,10 @@ export function runCommand(args: string[], input?: string): Promise<unknown> {
       process.execPath,
       [avaCLI, ...args],
       {
-        cwd: root,
+        cwd: directory ?? root,
+        ...(directory
+          ? { env: { ...process.env, TMPDIR: directory, TMP: directory, TEMP: directory } }
+          : {}),
         timeout: 75_000,
         maxBuffer: 20 * 1024 * 1024,
         encoding: 'utf8',

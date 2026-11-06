@@ -1,5 +1,6 @@
-import { readFile } from 'node:fs/promises';
-import { basename, extname } from 'node:path';
+import { chmod, copyFile, mkdtemp, readFile, rm } from 'node:fs/promises';
+import { basename, extname, join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { AVACommandError, fileSourceTypes, sourcePath } from './ava.js';
 import {
   fileSourceType,
@@ -79,6 +80,43 @@ export async function prepareSource(input: string | SourceConfig, type?: FileSou
   }
   // URL、连接串与完整配置可能含凭据，报告仅保存类型或本地文件名。
   return { config, label };
+}
+
+// -----------------------------------------------------------------------------
+// 每个源单独暂存，避免上游的目录授权暴露原目录或共享临时目录
+// -----------------------------------------------------------------------------
+
+export async function isolateSource(config: SourceConfig) {
+  // 短前缀为 AVA 的 Unix socket 路径预留空间。
+  const directory = await mkdtemp(join(tmpdir(), 'aw-'));
+  try {
+    const path = config.options.path;
+    if (
+      fileSourceType.safeParse(config.type).success &&
+      typeof path === 'string' &&
+      !/^https?:\/\//i.test(path)
+    ) {
+      const staged = join(directory, basename(path));
+      if (config.type === 'sqlite') {
+        // 一致性快照包含 WAL 中已提交的数据，不能只复制 SQLite 主文件。
+        const { DatabaseSync } = await import('node:sqlite');
+        const database = new DatabaseSync(path, { readOnly: true });
+        try {
+          database.exec(`VACUUM INTO '${staged.replaceAll("'", "''")}'`);
+        } finally {
+          database.close();
+        }
+      } else {
+        await copyFile(path, staged);
+      }
+      await chmod(staged, 0o600);
+      return { directory, config: { ...config, options: { ...config.options, path: staged } } };
+    }
+    return { directory, config };
+  } catch (error) {
+    await rm(directory, { recursive: true, force: true });
+    throw error;
+  }
 }
 
 // -----------------------------------------------------------------------------
