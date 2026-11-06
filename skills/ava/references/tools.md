@@ -3,7 +3,6 @@
 | Tool         | Arguments                                                                                  | Returns                                                                                                        |
 | ------------ | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
 | ava_check    | none                                                                                       | versions/platform; lightweight check                                                                           |
-| ava_demo     | optional new absolute `outputDirectory`                                                    | independently verified demo findings and artifact paths; disposes its own session                              |
 | ava_source   | absolute local `path`                                                                      | `datasetId`                                                                                                    |
 | ava_schema   | `datasetId`                                                                                | tables, fields, language and query instructions                                                                |
 | ava_query    | `datasetId`, `sql`, optional `maxRows` (1–10000)                                           | executed query result, schema, truncation information, `queryId`                                               |

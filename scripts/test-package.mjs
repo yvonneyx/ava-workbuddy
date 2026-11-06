@@ -5,32 +5,84 @@ import { tmpdir } from 'node:os';
 import assert from 'node:assert/strict';
 import { root, metadata } from '../lib/metadata.js';
 
+// -----------------------------------------------------------------------------
+// 分发内容与隔离安装
+// -----------------------------------------------------------------------------
+
 const archive = join(root, 'dist', `ava-workbuddy-${metadata.version}.tgz`);
 const files = execFileSync('tar', ['-tzf', archive], { encoding: 'utf8' }).trim().split('\n');
 assert(files.includes('package/lib/index.js') && files.includes('package/lib/index.d.ts'));
-assert(files.includes('package/templates/artifact.html'));
+assert(files.includes('package/public/artifact.html'));
+assert(files.includes('package/public/icon.svg'));
 assert(files.includes('package/npm-shrinkwrap.json'));
-assert(!files.some((path) => /(?:CONTRIBUTING\.md|CHANGELOG\.md|docs\/publishing\.md)$/.test(path)));
-assert(!files.some((path) => /(?:node_modules|\/test\/|\/scripts\/|\.env)/.test(path)));
+assert(
+  !files.some((path) => /(?:CONTRIBUTING\.md|CHANGELOG\.md|docs\/publishing\.md)$/.test(path)),
+);
+assert(!files.some((path) => /(?:node_modules|\/tests?\/|\/scripts\/|\.env)/.test(path)));
+assert(!files.some((path) => /\/(?:examples|templates|avatars)\//.test(path)));
+
+// 平台要求的资源位置由打包生成，内容必须与 public 中的维护源一致。
+for (const [kind, entry, source] of [
+  ['connector', 'ava-connector/icon.svg', 'public/icon.svg'],
+  ['expert', 'ava-workbuddy-assistant/avatars/expert.png', 'public/avatars/expert.png'],
+]) {
+  const zip = join(root, 'dist', `ava-workbuddy-${kind}-${metadata.version}.zip`);
+  assert.deepEqual(execFileSync('unzip', ['-p', zip, entry]), await readFile(join(root, source)));
+}
 const directory = await mkdtemp(join(tmpdir(), 'ava-workbuddy-install-'));
 const env = { ...process.env, PATH: `${dirname(process.execPath)}:${process.env.PATH}` };
 try {
-  await writeFile(join(directory, 'package.json'), JSON.stringify({ private: true, type: 'module' }));
-  execFileSync('npm', ['install', '--ignore-scripts', '--prefer-offline', '--no-audit', '--no-fund', archive], {
-    cwd: directory, env, encoding: 'utf8', timeout: 180000, maxBuffer: 2 * 1024 * 1024,
-  });
+  await writeFile(
+    join(directory, 'package.json'),
+    JSON.stringify({ private: true, type: 'module' }),
+  );
+  execFileSync(
+    'npm',
+    ['install', '--ignore-scripts', '--prefer-offline', '--no-audit', '--no-fund', archive],
+    {
+      cwd: directory,
+      env,
+      encoding: 'utf8',
+      timeout: 180000,
+      maxBuffer: 2 * 1024 * 1024,
+    },
+  );
+
+  // -----------------------------------------------------------------------------
+  // 真实消费端的类型声明
+  // -----------------------------------------------------------------------------
+
   // This is a consumer project, so exports and declarations resolve through node_modules.
-  await writeFile(join(directory, 'consumer.ts'), `
-import { Runtime, checkEnvironment, type ArtifactInput, type QueryResult, type CleanupReport } from 'ava-workbuddy';
+  await writeFile(
+    join(directory, 'consumer.ts'),
+    `
+import {
+  Runtime,
+  checkEnvironment,
+  type ArtifactInput,
+  type QueryResult,
+  type CleanupReport,
+} from 'ava-workbuddy';
 import { createServer } from 'ava-workbuddy/mcp';
 const runtime = new Runtime();
 const source = await runtime.source('/tmp/sales.csv');
 const result: QueryResult = await runtime.query(source.datasetId, 'SELECT 1');
 const rows: Record<string, unknown>[] = result.data;
 const cleanup: CleanupReport = await runtime.close();
-const report: ArtifactInput = { output: '/tmp/native.html', title: 'Native chart', summary: 'Query evidence',
-  sections: [{ question: 'Distribution', conclusion: 'Verified', queryId: 'q_example',
-    chart: { chartType: 'histogram', config: { binNumber: 10, theme: 'light' } }, chartConfigField: 'chart_config' }] };
+const report: ArtifactInput = {
+  output: '/tmp/native.html',
+  title: 'Native chart',
+  summary: 'Query evidence',
+  sections: [
+    {
+      question: 'Distribution',
+      conclusion: 'Verified',
+      queryId: 'q_example',
+      chart: { chartType: 'histogram', config: { binNumber: 10, theme: 'light' } },
+      chartConfigField: 'chart_config',
+    },
+  ],
+};
 const embedded = createServer();
 await embedded.close();
 console.log(rows, report, cleanup.retained, checkEnvironment().avaVersion);
@@ -38,34 +90,87 @@ console.log(rows, report, cleanup.retained, checkEnvironment().avaVersion);
 runtime.query(source.datasetId, 123);
 // @ts-expect-error Internal session ownership is not a mutable public field.
 runtime.sessions.add('ds_other');
-`);
-  execFileSync(process.execPath, [join(root, 'node_modules/typescript/bin/tsc'), '--noEmit', '--strict', '--skipLibCheck',
-    '--module', 'NodeNext', '--target', 'ES2022', '--types', 'node', '--typeRoots', join(root, 'node_modules/@types'), 'consumer.ts'], {
-    cwd: directory, env, encoding: 'utf8', timeout: 30000,
-  });
-  const imported = execFileSync(process.execPath, ['--input-type=module', '-e', `
+`,
+  );
+  execFileSync(
+    process.execPath,
+    [
+      join(root, 'node_modules/typescript/bin/tsc'),
+      '--noEmit',
+      '--strict',
+      '--skipLibCheck',
+      '--module',
+      'NodeNext',
+      '--target',
+      'ES2022',
+      '--types',
+      'node',
+      '--typeRoots',
+      join(root, 'node_modules/@types'),
+      'consumer.ts',
+    ],
+    {
+      cwd: directory,
+      env,
+      encoding: 'utf8',
+      timeout: 30000,
+    },
+  );
+
+  // -----------------------------------------------------------------------------
+  // 公开 API 与首次分析
+  // -----------------------------------------------------------------------------
+
+  const imported = execFileSync(
+    process.execPath,
+    [
+      '--input-type=module',
+      '-e',
+      `
 import { Runtime, checkEnvironment } from 'ava-workbuddy';
 import { createServer } from 'ava-workbuddy/mcp';
-const runtime = new Runtime();
-const { datasetId } = await runtime.source(${JSON.stringify(join(directory, 'node_modules/ava-workbuddy/examples/sales.csv'))});
-try {
-  const result = await runtime.query(datasetId, 'SELECT SUM(revenue) AS total FROM data');
-  if (Number(result.data[0].total) !== 67500 || result.truncated) throw new Error('Incorrect public API result');
-} finally {
-  const report = await runtime.close();
-  if (report.retained.length) throw new Error('Leaked library session');
+import { runDemo } from ${JSON.stringify(join(root, 'tests/demo.mjs'))};
+
+const result = await runDemo(new Runtime(), ${JSON.stringify(join(directory, 'demo'))});
+if (!result.sessionDisposedAfterCompletion) {
+  throw new Error('Leaked library session');
 }
 await createServer().close();
-console.log(JSON.stringify(checkEnvironment()));
-`], { cwd: directory, env, encoding: 'utf8', timeout: 120000 });
-  assert.equal(JSON.parse(imported).avaVersion, '4.0.0');
-  const output = execFileSync(process.execPath, [join(directory, 'node_modules/ava-workbuddy/lib/cli.js'), 'smoke'], {
-    cwd: directory, env, encoding: 'utf8', timeout: 180000, maxBuffer: 2 * 1024 * 1024,
-  });
-  const result = JSON.parse(output);
+console.log(JSON.stringify({
+  ...checkEnvironment(),
+  computationVerified: result.verified,
+  htmlGenerated: result.htmlGenerated,
+}));
+`,
+    ],
+    { cwd: directory, env, encoding: 'utf8', timeout: 180000 },
+  );
+  const result = JSON.parse(imported);
+  assert.equal(result.avaVersion, '4.0.0');
   assert.equal(result.computationVerified, true);
   assert.equal(result.htmlGenerated, true);
+
+  const checked = execFileSync(
+    process.execPath,
+    [join(directory, 'node_modules/ava-workbuddy/lib/cli.js'), 'check'],
+    { cwd: directory, env, encoding: 'utf8', timeout: 30000 },
+  );
+  assert.equal(JSON.parse(checked).avaVersion, '4.0.0');
   const sums = await readFile(join(root, 'dist/SHA256SUMS'), 'utf8');
   assert(sums.includes(`ava-workbuddy-${metadata.version}.tgz`));
-  console.log(JSON.stringify({ package: archive, freshDirectory: true, publicApiVerified: true, typesVerified: true, ...result }, null, 2));
-} finally { await rm(directory, { recursive: true, force: true }); }
+  console.log(
+    JSON.stringify(
+      {
+        package: archive,
+        freshDirectory: true,
+        publicApiVerified: true,
+        typesVerified: true,
+        ...result,
+      },
+      null,
+      2,
+    ),
+  );
+} finally {
+  await rm(directory, { recursive: true, force: true });
+}

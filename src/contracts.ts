@@ -1,13 +1,19 @@
 import { z } from 'zod/v4';
 
+// -----------------------------------------------------------------------------
+// AVA 响应与图表协议
+// -----------------------------------------------------------------------------
+
 export const sourceResult = z.object({ datasetId: z.string().regex(/^ds_[a-z0-9_-]+$/) });
 export const schemaResult = z.looseObject({
   language: z.looseObject({ name: z.string(), fence: z.string() }),
-  models: z.array(z.looseObject({
-    name: z.string(),
-    tableReference: z.looseObject({ table: z.string() }),
-    columns: z.array(z.looseObject({ name: z.string(), type: z.string() })),
-  })),
+  models: z.array(
+    z.looseObject({
+      name: z.string(),
+      tableReference: z.looseObject({ table: z.string() }),
+      columns: z.array(z.looseObject({ name: z.string(), type: z.string() })),
+    }),
+  ),
 });
 export const queryResult = z.looseObject({
   schema: z.array(z.object({ name: z.string(), type: z.string().optional() })),
@@ -19,7 +25,13 @@ export const queryResult = z.looseObject({
 export const semanticResult = z.record(z.string(), z.unknown());
 export const vizResult = z.object({ output: z.string() });
 export const disposeResult = z.object({ datasetId: z.string(), disposed: z.literal(true) });
-export const chartSpec = z.object({ chartType: z.string(), config: z.record(z.string(), z.unknown()) }).strict();
+export const chartSpec = z
+  .object({ chartType: z.string(), config: z.record(z.string(), z.unknown()) })
+  .strict();
+
+// -----------------------------------------------------------------------------
+// 公开结果类型
+// -----------------------------------------------------------------------------
 
 export type SourceResult = z.infer<typeof sourceResult>;
 export type SchemaResult = z.infer<typeof schemaResult>;

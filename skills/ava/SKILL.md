@@ -11,11 +11,11 @@ description_en:
 version: 0.2.1
 author: yvonneyx
 examples_zh:
-  - 用示例数据体验收入变化分析
+  - 分析我上传的 CSV，核对收入变化
   - 分析我上传的 Excel，找出收入变化最大的产品
   - 核对各产品变化之和，并生成图表
 examples_en:
-  - Try the bundled revenue-change example
+  - Analyze my CSV and verify revenue changes
   - Find the largest revenue changes in my Excel file
   - Reconcile product contributions and create a chart
 ---
@@ -27,7 +27,6 @@ renders. If tools are unavailable, complete the MCP connection before claiming t
 
 ## Start
 
-- Demo: call `ava_demo`; report its actual findings and files as synthetic data.
 - User file: obtain the actual attachment path, call `ava_source`, then `ava_schema`. Use returned
   tables and fields; never guess them.
 - Read [analysis rules](references/ava.md) before querying. Check existing definitions; ask only

@@ -1,0 +1,8 @@
+# 依赖与生成产物
+node_modules/
+lib/
+dist/
+
+# 锁文件和原始素材保持原样
+npm-shrinkwrap.json
+public/icon.svg

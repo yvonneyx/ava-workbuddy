@@ -9,6 +9,14 @@
   "type": "mcp",
   "version": "0.2.1",
   "minWorkbuddyVersion": "5.0.0",
-  "examples_zh": ["用示例数据体验收入变化分析", "分析我上传的 Excel，找出收入变化最大的产品", "核对各产品变化之和，并生成图表"],
-  "examples_en": ["Try the revenue-change example", "Analyze my Excel and find the largest product changes", "Reconcile product contributions and create a chart"]
+  "examples_zh": [
+    "分析我上传的 CSV，核对收入变化",
+    "分析我上传的 Excel，找出收入变化最大的产品",
+    "核对各产品变化之和，并生成图表"
+  ],
+  "examples_en": [
+    "Analyze my CSV and verify revenue changes",
+    "Analyze my Excel and find the largest product changes",
+    "Reconcile product contributions and create a chart"
+  ]
 }

@@ -1,6 +1,6 @@
 # AVA for WorkBuddy
 
-<img src="connector/icon.svg" width="88" alt="AntV logo">
+<img src="public/icon.svg" width="88" alt="AntV logo">
 
 在 WorkBuddy 中分析本地 CSV / Excel，核对指标变化，交付结论、结果表、交互图表和可追溯的 HTML 报告。
 
@@ -27,21 +27,21 @@ WorkBuddy 理解问题并编写 SQL，AVA 在本地执行计算和制图，无�
 以上入口均安装 **v0.2.1**；首次运行需访问 GitHub 和 npm。安装后发送：
 
 ```text
-用内置示例分析收入变化，核对总额与各产品贡献，给出结论、结果表和图表链接。
+分析我上传的 CSV / Excel，核对指标变化，给出结论、结果表和图表链接。
 ```
 
-示例使用 8 行模拟数据：收入从 30,000 增至 37,500 美元（+25%），Analytics 贡献净增量的 80%。分析自己
-的数据时，上传 CSV / XLSX 并描述问题。包校验和与发布流程见[发布指南](docs/publishing.md)。
+上传 CSV / XLSX 并描述问题；也可下载 [模拟数据](tests/fixtures/sales.csv) 后上传体验。包校验和与发布
+流程见[发布指南](docs/publishing.md)。
 
 ### 当前源码
 
-当前源码提供 **9 个工具**；已发布 v0.2.1 提供 8 个，尚无 `ava_artifact` 和查询证据编号。要体验完整
-HTML 报告，使用本地构建：
+当前源码提供 **8 个工具**，新增 `ava_artifact` 和查询证据编号，移除了内置 demo 入口。已发布 v0.2.1
+尚无报告功能。要体验完整 HTML 报告，使用本地构建：
 
 ```sh
 npm ci
 npm run build
-node lib/cli.js demo /absolute/path/to/a-new-directory
+node lib/cli.js check
 ```
 
 本地 MCP 配置：将 `connector/mcp.json` 中的 `command` 改为受支持 Node.js 的绝对路径，`args` 改为本仓
@@ -72,21 +72,19 @@ node lib/cli.js demo /absolute/path/to/a-new-directory
 | `npm run typecheck`        | 类型检查                                                         |
 | `npm test`                 | 构建并运行单元测试和配置校验                                     |
 | `npm run test:integration` | 真实 MCP、CSV/XLSX、只读查询、图表与报告验证                     |
-| `npm run smoke`            | 临时目录中的完整示例                                             |
 | `npm run test:package`     | 构建、打包，在新目录安装并验证公开 API 和首次分析                |
 | `npm run package`          | 重建 `dist/`，生成 TGZ、三个 ZIP 和 `SHA256SUMS`；需要 zip/unzip |
 
 集成测试和 CLI 使用编译结果，修改源码后先构建。CI 覆盖 macOS / Linux、Node.js 22 / 24。
 
 ```text
-src/          TypeScript 运行时、MCP、CLI、报告和示例
+src/          TypeScript 运行时、MCP、CLI 和报告
+public/       HTML 报告模板、图标和头像的唯一维护源
+tests/        单元与集成测试、demo helper 和 fixtures
 skills/ava/   分析流程与参考资料，唯一维护源
-connector/    连接器元信息、MCP 配置和图标
+connector/    连接器元信息和 MCP 配置
 expert/       专家身份、表达偏好和展示信息
-templates/    固定 HTML 报告模板
-examples/     模拟数据与可复现 SQL
 scripts/      配置校验、打包和安装验证
-test/         单元、集成测试与 XLSX 夹具
 docs/         API 和发布指南
 lib/、dist/   生成文件，不提交
 ```
