@@ -7,7 +7,7 @@ displayName:
   zh: AVA 数据分析师
   en: AVA Data Analyst
 profession:
-  zh: 数据分析师
+  zh: AVA 数据分析师
   en: Data Analyst
 ---
 
