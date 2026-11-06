@@ -1,7 +1,7 @@
 {
   "name": "ava-workbuddy-assistant",
   "version": "0.2.1",
-  "description": "Analyze files, databases, inline data and Feishu Bitable with AVA and create traceable reports.",
+  "description": "Explore files, databases, inline data and Feishu/Lark Bitable with AVA. Answer questions with verified results, visualizations and traceable reports.",
   "author": {
     "name": "yvonneyx",
     "email": "zhuyuxin0627@gmail.com"
@@ -18,24 +18,24 @@
     "en": "Data Analyst"
   },
   "displayDescription": {
-    "zh": "分析文件、数据库和飞书表格，拆解指标变化、核对计算口径，交付结论、结果表与图表及可追溯报告。",
-    "en": "Analyze files, databases, inline data and Feishu Bitable, explain metric changes, and check metric definitions. Deliver findings, result tables, interactive charts and a traceable report."
+    "zh": "分析文件、数据库、飞书表格等数据源，探索数据特征、回答业务问题，交付结论、图表和可追溯的报告。",
+    "en": "Explore files, databases, inline data and Feishu/Lark Bitable. Answer business questions and deliver findings, result tables, interactive charts and traceable reports."
   },
   "avatar": "avatars/expert.png",
   "categoryId": "04-DataAI",
   "defaultInitPrompt": {
-    "zh": "分析这份表格，概括关键指标并生成报告。",
-    "en": "Summarize key metrics in this spreadsheet and create a report."
+    "zh": "分析我提供的数据，概括主要特征、值得关注的问题和可继续探索的方向。",
+    "en": "Explore the data I provide, summarize its main characteristics, and identify noteworthy issues and useful follow-up questions."
   },
   "plugin": "ava-workbuddy-assistant",
   "tags": [
     {
-      "zh": "指标分析",
-      "en": "Metric Analysis"
+      "zh": "数据探索",
+      "en": "Data Exploration"
     },
     {
-      "zh": "口径核对",
-      "en": "Metric Definitions"
+      "zh": "统计分析",
+      "en": "Statistical Analysis"
     },
     {
       "zh": "可视化报告",
@@ -44,16 +44,16 @@
   ],
   "quickPrompts": [
     {
-      "zh": "分析这份表格，概括关键指标并生成报告。",
-      "en": "Summarize key metrics in this spreadsheet and create a report."
+      "zh": "分析我提供的数据，概括主要特征、值得关注的问题和可继续探索的方向。",
+      "en": "Explore the data I provide, summarize its main characteristics, and identify noteworthy issues and useful follow-up questions."
     },
     {
-      "zh": "对比两个时期，找出对指标变化贡献最大的项目。",
-      "en": "Compare two periods and identify the largest contributors to the metric change."
+      "zh": "分析数据库中的业务数据，比较不同时期或类别的差异，并用图表解释关键发现。",
+      "en": "Analyze business data in my database, compare periods or categories, and explain the key findings with charts."
     },
     {
-      "zh": "核对这个指标的计算口径和结果。",
-      "en": "Check how this metric is calculated and verify the result."
+      "zh": "分析这张飞书多维表格，回答我的问题，并生成包含结论、图表和查询依据的报告。",
+      "en": "Analyze this Feishu/Lark Bitable, answer my questions, and create a report with findings, charts and query evidence."
     }
   ],
   "dependencies": {

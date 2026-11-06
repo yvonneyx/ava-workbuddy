@@ -2,6 +2,8 @@
 
 ## 未发布
 
+- 更新专家中英文简介、身份说明、标签和快捷提问，面向多数据源探索、分析问答与可视化报告。
+
 - `ava_source` / `Runtime.source()` 支持 AVA 4.0.0 全部 14 种数据源：本地及 HTTP(S) 文件、内联
   CSV/JSON/text、MySQL/PostgreSQL/SQLite/MongoDB/ClickHouse/Supabase、飞书/Lark 多维表格。保留原
   `path` 调用，新增原生 `config`、`@配置文件` 与文件格式覆盖 `type`。配置通过 stdin 传入，报告来源只
