@@ -55,6 +55,52 @@ async function call(client, name, args = {}) {
 // -----------------------------------------------------------------------------
 
 test(
+  'MCP redacts database credentials from schema and query errors',
+  { timeout: 30000 },
+  async () => {
+    const secret = 'integration-dummy-password';
+    const remote = createServer((request, response) => {
+      request.resume();
+      response.writeHead(401, { 'Content-Type': 'text/plain' });
+      response.end(`Authentication failed; password=${secret}`);
+    });
+    remote.listen(0, '127.0.0.1');
+    await once(remote, 'listening');
+    let connection;
+    try {
+      connection = await connect();
+      const { client } = connection;
+      const source = await call(client, 'ava_source', {
+        config: {
+          type: 'clickhouse',
+          options: {
+            url: `http://127.0.0.1:${remote.address().port}`,
+            database: 'sales',
+            username: 'test',
+            password: secret,
+          },
+        },
+      });
+      for (const name of ['ava_schema', 'ava_query']) {
+        const result = await client.callTool({
+          name,
+          arguments: { ...source, ...(name === 'ava_query' ? { sql: 'SELECT 1' } : {}) },
+        });
+        assert.equal(result.isError, true);
+        const message = result.content.map((item) => item.text).join('\n');
+        assert.match(message, /Authentication failed/);
+        assert.match(message, /\[redacted\]/);
+        assert(!message.includes(secret));
+      }
+      await call(client, 'ava_dispose', source);
+    } finally {
+      await connection?.client.close();
+      await new Promise((resolve) => remote.close(resolve));
+    }
+  },
+);
+
+test(
   'MCP loads JSON, Parquet, SQLite, inline CSV/JSON and authenticated HTTP sources',
   { timeout: 180000 },
   async () => {

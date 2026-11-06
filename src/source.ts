@@ -85,7 +85,7 @@ export async function prepareSource(input: string | SourceConfig, type?: FileSou
 // 上游错误可能回显连接串，移除已知凭据后保留诊断和不确定状态
 // -----------------------------------------------------------------------------
 
-export function sourceError(error: unknown, config: SourceConfig) {
+export function sourceErrorRedactor(config: SourceConfig) {
   const secrets = new Set<string>();
   const collect = (value: unknown, sensitive = false) => {
     if (typeof value === 'string') {
@@ -121,11 +121,15 @@ export function sourceError(error: unknown, config: SourceConfig) {
     }
   };
   collect(config.options);
-  let message = error instanceof Error ? error.message : String(error);
-  for (const secret of [...secrets].sort((a, b) => b.length - a.length)) {
-    message = message.replaceAll(secret, '[redacted]');
-  }
-  return error instanceof AVACommandError
-    ? new AVACommandError(message, error.uncertain)
-    : new Error(message);
+  const values = [...secrets].sort((a, b) => b.length - a.length);
+  // 会话只保留脱敏所需的值，不保留完整数据源配置。
+  return (error: unknown) => {
+    let message = error instanceof Error ? error.message : String(error);
+    for (const secret of values) {
+      message = message.replaceAll(secret, '[redacted]');
+    }
+    return error instanceof AVACommandError
+      ? new AVACommandError(message, error.uncertain)
+      : new Error(message);
+  };
 }

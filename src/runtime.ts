@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod/v4';
 import { AVACommandError, runCommand, outputPath } from './ava.js';
-import { prepareSource, sourceError } from './source.js';
+import { prepareSource, sourceErrorRedactor } from './source.js';
 import {
   sourceResult,
   chartSpec,
@@ -31,6 +31,7 @@ export class Runtime {
   // -----------------------------------------------------------------------------
 
   #sources = new Map<string, string>();
+  #redactErrors = new Map<string, ReturnType<typeof sourceErrorRedactor>>();
   #queries = new Map<string, QueryEvidence>();
   #busy = new Set<string>();
   #uncertain = new Set<string>();
@@ -94,7 +95,7 @@ export class Runtime {
         if (error instanceof AVACommandError && error.uncertain) {
           this.#uncertain.add(id);
         }
-        throw error;
+        throw this.#redactErrors.get(id)!(error);
       } finally {
         this.#busy.delete(id);
       }
@@ -108,12 +109,14 @@ export class Runtime {
   source(input: string | SourceConfig, type?: FileSourceType): Promise<SourceResult> {
     return this.#run(async () => {
       const { config, label } = await prepareSource(input, type);
+      const redactError = sourceErrorRedactor(config);
       try {
         const result = await this.#execute(['source', '-'], sourceResult, JSON.stringify(config));
         this.#sources.set(result.datasetId, label);
+        this.#redactErrors.set(result.datasetId, redactError);
         return result;
       } catch (error) {
-        throw sourceError(error, config);
+        throw redactError(error);
       }
     });
   }
@@ -202,6 +205,7 @@ export class Runtime {
     return this.#session(id, async () => {
       const result = await this.#execute(['dispose', id], disposeResult);
       this.#sources.delete(id);
+      this.#redactErrors.delete(id);
       return result;
     });
   }
@@ -222,12 +226,13 @@ export class Runtime {
         } catch (error) {
           report.errors.push({
             datasetId: id,
-            message: error instanceof Error ? error.message : String(error),
+            message: this.#redactErrors.get(id)!(error).message,
           });
         }
       }
       report.retained = [...this.#sources.keys()];
       this.#queries.clear();
+      this.#redactErrors.clear();
       return report;
     });
     return this.#cleanup;

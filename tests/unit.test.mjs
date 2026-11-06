@@ -248,6 +248,57 @@ test('source errors redact connection credentials while preserving uncertain out
   assert.deepEqual(runtime.calls[0].args, ['source', '-']);
 });
 
+test('session operations and cleanup redact saved credentials after loading', async () => {
+  const operations = [
+    (runtime) => runtime.schema(id),
+    (runtime) => runtime.query(id, 'SELECT 1'),
+    (runtime) => runtime.semantic(id),
+    (runtime) => runtime.semantic(id, { description: 'Revenue' }),
+    (runtime) => runtime.dispose(id),
+  ];
+  for (const operation of operations) {
+    const runtime = new StubRuntime();
+    const config = {
+      type: 'clickhouse',
+      options: {
+        url: 'https://example.com',
+        database: 'sales',
+        password: 'session-password',
+        headers: { Authorization: 'Bearer session-token' },
+      },
+    };
+    await runtime.source(config);
+    config.options.password = 'changed-after-loading';
+    runtime.command = async () => {
+      throw new Error('Connection failed: session-password Bearer session-token');
+    };
+    const expected = 'Connection failed: [redacted] [redacted]';
+    await assert.rejects(operation(runtime), { message: expected });
+    assert.deepEqual(await runtime.close(), {
+      disposed: [],
+      retained: [id],
+      errors: [{ datasetId: id, message: expected }],
+    });
+  }
+});
+
+test('redacted session timeouts preserve uncertain state and block automatic reuse', async () => {
+  const runtime = new StubRuntime();
+  await runtime.source({ type: 'mysql', options: { password: 'timeout-password' } });
+  runtime.command = async () => {
+    throw new AVACommandError('Timed out: timeout-password', true);
+  };
+  await assert.rejects(
+    runtime.query(id, 'SELECT 1'),
+    (error) =>
+      error instanceof AVACommandError &&
+      error.uncertain &&
+      error.message === 'Timed out: [redacted]',
+  );
+  await assert.rejects(runtime.dispose(id), /uncertain/);
+  assert.deepEqual(await runtime.close(), { disposed: [], retained: [id], errors: [] });
+});
+
 test('MCP exposes native source configs, validates exclusive inputs and declares remote access', async () => {
   const runtime = new StubRuntime();
   const connection = createServer(runtime);
@@ -923,6 +974,53 @@ test('artifact refuses inline chart data and ambiguous config evidence without c
 // -----------------------------------------------------------------------------
 // 模板稳定性与 SQL 高亮
 // -----------------------------------------------------------------------------
+
+test('report metric rendering preserves large integers and precise decimal strings', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'ava-metric-precision-'));
+  const runtime = await loaded();
+  try {
+    runtime.command = async () => ({
+      schema: [{ name: 'value' }],
+      data: [
+        { value: '9007199254740993' },
+        { value: '0.123456789123456789' },
+        { value: 67500 },
+      ],
+    });
+    const result = await runtime.query(id, 'SELECT value FROM data');
+    const artifact = await runtime.artifact({
+      output: join(directory, 'precision.html'),
+      title: 'Precision',
+      summary: 'Keep exact values',
+      metrics: result.data.map((_, rowIndex) => ({
+        label: `Value ${rowIndex}`,
+        queryId: result.queryId,
+        field: 'value',
+        rowIndex,
+      })),
+      sections: [{ question: 'Values?', conclusion: 'Evidence', queryId: result.queryId }],
+    });
+    const html = await readFile(artifact.output, 'utf8');
+    const report = JSON.parse(await readFile(artifact.dataOutput, 'utf8'));
+    const formatting = html.slice(html.indexOf('const format ='), html.indexOf('const bind ='));
+    const start = html.indexOf('report.metrics.forEach(');
+    const render = html.slice(start, html.indexOf('// -----', start));
+    const displayed = [];
+    runInNewContext(formatting + render, {
+      report,
+      queries: new Map(report.queries.map((query) => [query.queryId, query])),
+      clone: () => ({}),
+      bind: (_, fields) => displayed.push(fields.value),
+      document: { getElementById: () => ({ append() {} }) },
+    });
+    assert.deepEqual(displayed, ['9007199254740993', '0.123456789123456789', '67,500']);
+    assert.deepEqual(report.queries[0].result.data, result.data);
+  } finally {
+    runtime.command = async () => ({ datasetId: id, disposed: true });
+    await runtime.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 
 test('different report fields use byte-identical templates with a single JSON data slot', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'ava-template-'));

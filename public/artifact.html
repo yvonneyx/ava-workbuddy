@@ -886,7 +886,7 @@
         const node = clone('metric-template');
         bind(node, {
           label: metric.label,
-          value: format(Number(query.result.data[metric.rowIndex][metric.field])),
+          value: format(query.result.data[metric.rowIndex][metric.field]),
           unit: metric.unit,
         });
         document.getElementById('metrics').append(node);
