@@ -23,17 +23,21 @@ export const artifactInput = z
         'Absolute path to a NEW .html file; parent directory must exist. A matching ' +
           '.json evidence file is also created; neither file may already exist',
       ),
-    title: text.max(200),
-    summary: text,
+    title: text.max(200).describe('Report title'),
+    summary: text.describe('Main finding supported by the referenced query results'),
     metrics: z
       .array(
         z
           .object({
             label: text.max(100),
             queryId,
-            field: text.max(200),
-            rowIndex: z.number().int().min(0).default(0),
-            unit: z.string().max(40).optional(),
+            field: text.max(200).describe('Exact result column containing a finite numeric value'),
+            rowIndex: z.number().int().min(0).default(0).describe('Zero-based result row index'),
+            unit: z
+              .string()
+              .max(40)
+              .optional()
+              .describe('Display unit; does not convert the value'),
           })
           .strict(),
       )
@@ -43,24 +47,40 @@ export const artifactInput = z
       .array(
         z
           .object({
-            question: text.max(500),
-            conclusion: text,
+            question: text.max(500).describe('Question answered by this section'),
+            conclusion: text.describe("Finding supported by this section's query evidence"),
             queryId,
-            chart: chartSpec.optional(),
+            chart: chartSpec
+              .optional()
+              .describe(
+                'Native AVA chart; saved query rows supply config.data by default. ' +
+                  'Do not supply config.data, categories, series or percent inline. ' +
+                  'Use SQL aliases and casts to produce native fields and numbers.',
+              ),
             chartConfigField: text
               .max(200)
               .optional()
               .describe(
-                'For non-row chart data: a column containing the native AVA config object in ' +
-                  'a single-row query result',
+                'For non-row chart data: result column containing a native config OBJECT in ' +
+                  'exactly one query row, not a JSON string. Its keys override chart.config. ' +
+                  "Example histogram SQL: SELECT {'data': list(CAST(revenue AS DOUBLE))} " +
+                  'AS chart_config FROM data',
               ),
           })
           .strict(),
       )
       .min(1)
       .max(16),
-    definitions: z.array(text.max(1000)).max(20).default([]),
-    limitations: z.array(text.max(1000)).max(20).default([]),
+    definitions: z
+      .array(text.max(1000))
+      .max(20)
+      .default([])
+      .describe('Confirmed metric definitions, scope and units applied in the queries'),
+    limitations: z
+      .array(text.max(1000))
+      .max(20)
+      .default([])
+      .describe('Material data gaps and limits on the conclusions'),
   })
   .strict();
 

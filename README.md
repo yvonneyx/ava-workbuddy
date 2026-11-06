@@ -51,8 +51,9 @@ node lib/cli.js check
 
 **加载文件 → 查看结构 → 执行只读查询 → 核对结果 → 生成图表或报告 → 释放会话**
 
-工具参数见 [MCP 工具参考](skills/ava/references/tools.md)，分析步骤见
-[AVA Skill](skills/ava/SKILL.md)。报告从实际查询证据生成，包含结论、结果表、SQL 和可选图表。
+工具参数由 MCP 的描述和输入 schema 提供。可选的 [AVA Skill](skills/ava/SKILL.md) 补充指标核对、证据
+组织和交付方法。库调用见 [API](docs/api.md)。报告包含结论、结果表、SQL 和可选图表，数据来自实际查询
+证据。
 
 - 数据在本地 AVA 进程中计算；查询结果返回 WorkBuddy，适用其模型服务的数据处理规则。
 - 源文件只读，已有输出不覆盖。进程使用 WorkBuddy 授予的本地权限，本项目不提供额外文件系统沙箱。

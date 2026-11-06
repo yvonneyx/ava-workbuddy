@@ -100,14 +100,27 @@ export function createServer(runtime = new Runtime()) {
     'ava_query',
     'Execute read-only DuckDB SQL and return queryId for artifact evidence. The ' +
       'latest 32 results and exact SQL are retained in this connection. Check ' +
-      'truncation and scope. Semantic metadata does not rewrite SQL.',
+      'truncation and scope. Closing the connection clears this cache; save needed ' +
+      'evidence first. Semantic metadata does not rewrite SQL. Timed-out operations ' +
+      'may still run; do not automatically retry or dispose an uncertain session.',
     z.object({
       datasetId: id,
       sql: z
         .string()
         .min(1)
-        .max(512 * 1024),
-      maxRows: z.number().int().min(1).max(10000).optional(),
+        .max(512 * 1024)
+        .describe(
+          'One read-only SELECT or CTE using tables and fields from ava_schema; at most 512 KiB',
+        ),
+      maxRows: z
+        .number()
+        .int()
+        .min(1)
+        .max(10000)
+        .optional()
+        .describe(
+          'Returned row limit, default 200. Check truncated; prefer aggregation for complete results',
+        ),
     }),
     ({ datasetId, sql, maxRows }) => runtime.query(datasetId, sql, maxRows),
     { readOnlyHint: true },
@@ -134,7 +147,7 @@ export function createServer(runtime = new Runtime()) {
     'Render verified query results as a GPT-Vis chart HTML. Spec requires ' +
       'chartType and config, not syntax. Absolute output path must be new; parent ' +
       'directory must exist. HTML needs network for GPT-Vis; generation does not ' +
-      'prove visual rendering.',
+      'prove visual rendering. Standalone config must include the verified data.',
     z.object({
       spec: chartSpec,
       output: z.string(),
@@ -145,13 +158,11 @@ export function createServer(runtime = new Runtime()) {
     'ava_artifact',
     'Create one fixed-template analysis HTML and matching evidence JSON with ' +
       'questions, conclusions, charts, tables, and exact SQL. Reference ava_query ' +
-      'queryIds from this connection. Charts use AVA chartType/config; query rows ' +
-      'supply config.data, so alias SQL columns to native GPT-Vis fields. For ' +
-      'special data shapes, chartConfigField selects a native config object from a ' +
-      'single-row query. Never provide inline data, categories, series or percent; ' +
-      'these must come from query evidence. Other chart options pass through to ' +
-      'AVA. Use NEW .html and matching .json paths. This does not independently ' +
-      'verify assistant conclusions or browser rendering.',
+      'queryIds from this connection, including disposed datasets. Truncated ' +
+      'results are not plotted; chartErrors preserves failures while tables and ' +
+      'SQL remain available. Return paths are output and dataOutput. Sharing the ' +
+      'HTML shares its query results. This does not independently verify assistant ' +
+      'conclusions or browser rendering.',
     artifactInput,
     (input) => runtime.artifact(input),
   );

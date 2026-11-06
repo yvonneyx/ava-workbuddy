@@ -1,7 +1,7 @@
 AVA WorkBuddy is an independent community integration, not an official Tencent
 or AntV product. AVA is used as the unmodified npm dependency @antv/ava@4.0.0.
 
-The data-analysis guidance in skills/ava/references/ava.md is adapted from
+The data-analysis guidance in skills/ava/SKILL.md is adapted from
 antvis/AVA skills/ava at commit 692f5354c390f51ae8ddadef4e0256c0bb58abd9.
 https://github.com/antvis/AVA/tree/692f5354c390f51ae8ddadef4e0256c0bb58abd9/skills/ava
 Copyright (c) 2018-2023 AntV team, MIT License.

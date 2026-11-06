@@ -26,7 +26,15 @@ export const semanticResult = z.record(z.string(), z.unknown());
 export const vizResult = z.object({ output: z.string() });
 export const disposeResult = z.object({ datasetId: z.string(), disposed: z.literal(true) });
 export const chartSpec = z
-  .object({ chartType: z.string(), config: z.record(z.string(), z.unknown()) })
+  .object({
+    chartType: z.string().describe('Native AVA chart type, for example bar, column, line or pie'),
+    config: z
+      .record(z.string(), z.unknown())
+      .describe(
+        'Native AVA/GPT-Vis options. Use native data fields and numeric values. ' +
+          'AVA sets config.type from chartType; no local chart adapter is applied.',
+      ),
+  })
   .strict();
 
 // -----------------------------------------------------------------------------

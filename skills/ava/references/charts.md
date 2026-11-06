@@ -1,39 +1,41 @@
-# Chart configuration
+# Native chart data
 
-`ava_viz` accepts
-`{ "spec": { "chartType": "bar", "config": { ... } }, "output": "/absolute/new/chart.html" }`.
-`config.type` is filled/overridden by AVA. Numbers must be numbers; put units in titles, not values.
-The same `{ chartType, config }` structure is used by artifact sections, with data bound from query
-evidence; see [artifact inputs](tools.md#analysis-artifact).
+AVA uses GPT-Vis config. The chart data must have the native field names and numeric values; produce
+them with SQL aliases and casts rather than rewriting query results in the assistant. Put units in
+labels and axis titles, not in numeric values.
 
-| Intent                               | chartType        | config data                                               |
-| ------------------------------------ | ---------------- | --------------------------------------------------------- |
-| Compare categories                   | bar / column     | `[{category, value, group?}]`                             |
-| Ordered time trend                   | line / area      | `[{time, value, group?}]`                                 |
-| Non-negative composition             | pie              | `[{category, value}]`, with positive total                |
-| Relationship                         | scatter          | `[{x, y, group?}]`                                        |
-| Distribution of raw observations     | histogram        | numeric array                                             |
-| Distribution by group                | boxplot / violin | `[{category, value}]`, multiple observations per group    |
-| Signed changes contributing to total | waterfall        | `[{category, value}, {category: "Total", isTotal: true}]` |
-| Exact values                         | table            | original result rows                                      |
+| Chart            | Native data                                                      |
+| ---------------- | ---------------------------------------------------------------- |
+| bar / column     | `[{category, value, group?}]`                                    |
+| pie              | `[{category, value}]`, non-negative values with a positive total |
+| line / area      | `[{time, value, group?}]`, ordered by time                       |
+| scatter          | `[{x, y, group?}]`                                               |
+| histogram        | numeric array                                                    |
+| boxplot / violin | `[{category, value}]`, multiple observations per category        |
+| dual-axes        | `categories` and `series` containing native series objects       |
+| liquid           | `percent` between 0 and 1                                        |
 
-For example, after a verified regional query returns East=25 and West=20:
+For an artifact column chart, query the native rows and reference its `queryId`; omit inline chart
+data. For example:
 
-```json
-{
-  "chartType": "bar",
-  "config": {
-    "data": [
-      { "category": "East", "value": 25 },
-      { "category": "West", "value": 20 }
-    ],
-    "title": "Revenue by region (USD)",
-    "axisXTitle": "Region",
-    "axisYTitle": "Revenue (USD)"
-  }
-}
+```sql
+SELECT month AS category, CAST(SUM(revenue) AS DOUBLE) AS value
+FROM data GROUP BY month ORDER BY month
 ```
 
-Sort time, label Top N and filtered scopes, and keep the chart tied to its saved query/result. Use a
-bar chart for signed category changes; use a waterfall for additive contributions. Preview with
-available browser tools and check labels, values and units.
+```json
+{ "chartType": "column", "config": { "axisYTitle": "Revenue (USD)" } }
+```
+
+For non-row shapes, return a native config object in one query cell and set the section's
+`chartConfigField` to that column. The object's keys override supplied presentation options. For
+example, a histogram query returns a numeric array under `data`:
+
+```sql
+SELECT {'data': list(CAST(revenue AS DOUBLE))} AS chart_config FROM data
+```
+
+Use `chartConfigField: "chart_config"` and
+`chart: {chartType: "histogram", config: {binNumber: 10}}`. The cell must be an object, not a JSON
+string. A standalone `ava_viz` has no evidence binding, so its `config` must include the verified
+chart data explicitly.

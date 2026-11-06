@@ -44,9 +44,10 @@ Release 的 TGZ 已编译，使用者不需要 TypeScript 编译器。源码开�
 
 当前源码新增（尚未发布）：`query()` 返回兼容 `QueryResult` 的 `ExecutedQueryResult`，额外包含
 `queryId`。同一 Runtime 保留最近 32 次查询的不可变证据快照，数据集释放后仍可生成报告；关闭 Runtime
-后清除。`ArtifactInput` 从公开库入口导出，完整参数见
-[artifact 工具说明](../skills/ava/references/tools.md#analysis-artifact)。报告生成不会自行验证助手结
-论，`chartPreviewVerified` 保持 false，直到宿主实际预览。
+后清除。`ArtifactInput` 从公开库入口导出，字段说明和校验由
+[artifact 输入 schema](../src/artifact.ts) 统一维护，原生数据形状见
+[图表参考](../skills/ava/references/charts.md)。报告生成不会自行验证助手结论，
+`chartPreviewVerified` 保持 false，直到宿主实际预览。
 
 ```ts
 import { Runtime } from 'ava-workbuddy';
