@@ -1,7 +1,7 @@
 {
   "name": "ava-workbuddy-assistant",
   "version": "0.2.1",
-  "description": "Analyze local business data with AVA and deliver verified results and charts.",
+  "description": "Analyze local CSV and Excel files with AVA and create traceable reports.",
   "author": {
     "name": "yvonneyx",
     "email": "zhuyuxin0627@gmail.com"
@@ -14,46 +14,46 @@
     "en": "AVA Data Analysis Assistant"
   },
   "profession": {
-    "zh": "AVA 数据分析助手",
-    "en": "AVA Data Analysis Assistant"
+    "zh": "数据分析师",
+    "en": "Data Analyst"
   },
   "displayDescription": {
-    "zh": "上传本地表格，分析指标变化、核对业务口径，生成有据可查的结论、结果表与交互图表，支持继续追问。",
-    "en": "Analyze local spreadsheets, verify business metrics, and deliver traceable findings, result tables, and interactive charts."
+    "zh": "分析本地表格，拆解指标变化、核对计算口径，交付结论、结果表与交互图表，生成可追溯的分析报告。",
+    "en": "Analyze local CSV and Excel files, explain metric changes, and check metric definitions. Deliver findings, result tables, interactive charts and a traceable report."
   },
   "avatar": "avatars/expert.png",
   "categoryId": "04-DataAI",
   "defaultInitPrompt": {
-    "zh": "分析我上传的表格，核对指标变化并生成图表。",
-    "en": "Analyze my spreadsheet, verify metric changes, and create a chart."
+    "zh": "分析这份表格，概括关键指标并生成报告。",
+    "en": "Summarize key metrics in this spreadsheet and create a report."
   },
   "plugin": "ava-workbuddy-assistant",
   "tags": [
     {
-      "zh": "数据分析",
-      "en": "Data Analysis"
+      "zh": "指标分析",
+      "en": "Metric Analysis"
     },
     {
-      "zh": "指标核验",
-      "en": "Metric Verification"
+      "zh": "口径核对",
+      "en": "Metric Definitions"
     },
     {
-      "zh": "可视化",
-      "en": "Visualization"
+      "zh": "可视化报告",
+      "en": "Visual Reports"
     }
   ],
   "quickPrompts": [
     {
-      "zh": "分析我上传的表格，核对指标变化并生成图表。",
-      "en": "Analyze my spreadsheet, verify metric changes, and create a chart."
+      "zh": "分析这份表格，概括关键指标并生成报告。",
+      "en": "Summarize key metrics in this spreadsheet and create a report."
     },
     {
-      "zh": "分析我上传的表格，找出指标变化最大的项目。",
-      "en": "Analyze my spreadsheet and find the largest metric changes."
+      "zh": "对比两个时期，找出对指标变化贡献最大的项目。",
+      "en": "Compare two periods and identify the largest contributors to the metric change."
     },
     {
-      "zh": "核对这份数据的计算口径，生成可复查的图表。",
-      "en": "Verify metric definitions and create a chart with reproducible evidence."
+      "zh": "核对这个指标的计算口径和结果。",
+      "en": "Check how this metric is calculated and verify the result."
     }
   ],
   "dependencies": {
