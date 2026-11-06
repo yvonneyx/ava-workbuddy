@@ -401,20 +401,26 @@ test(
       assert.deepEqual(configs[2].categories, ['2025-01', '2025-02']);
       assert.deepEqual(configs[2].series[0].data, [30000, 37500]);
       assert.equal(configs[3].percent, 0.25);
-      const invalidChart = await call(client, 'ava_artifact', {
-        output: join(directory, 'invalid-chart.html'),
-        title: 'Invalid chart fields',
-        summary: 'Keep query evidence.',
-        sections: [
-          {
-            question: 'Q',
-            conclusion: 'C',
-            queryId: pie.queryId,
-            chart: { chartType: 'scatter', config: {} },
-          },
-        ],
+      const invalidChart = await client.callTool({
+        name: 'ava_artifact',
+        arguments: {
+          output: join(directory, 'invalid-chart.html'),
+          title: 'Invalid chart fields',
+          summary: 'Keep query evidence.',
+          sections: [
+            {
+              question: 'Q',
+              conclusion: 'C',
+              queryId: pie.queryId,
+              chart: { chartType: 'scatter', config: {} },
+            },
+          ],
+        },
       });
-      assert.match(invalidChart.chartErrors[0].message, /config\.data\.0\.x/);
+      assert.equal(invalidChart.isError, true);
+      assert.match(invalidChart.content[0].text, /config\.data\.0\.x/);
+      await assert.rejects(access(join(directory, 'invalid-chart.html')), /ENOENT/);
+      await assert.rejects(access(join(directory, 'invalid-chart.json')), /ENOENT/);
 
       // 原对话的业务列名需要显式绑定，不能依赖渲染器猜测。
       const monthly = await call(client, 'ava_query', {

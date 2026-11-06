@@ -50,26 +50,26 @@ export const artifactInput = z
             question: text.max(500).describe('Question answered by this section'),
             conclusion: text.describe("Finding supported by this section's query evidence"),
             queryId,
-            chart: artifactChartSpec
-              .optional()
-              .describe(
-                'Native AVA chart; query rows must match the native fields for this chartType. ' +
-                  'Use chartFields to bind existing result columns; otherwise rows supply config.data unchanged. ' +
-                  'Do not supply config.data, categories, series or percent inline. ' +
-                  'For example, a column chart can use a query returning ' +
-                  'month AS category, CAST(SUM(revenue) AS DOUBLE) AS value ' +
-                  'grouped and ordered by month, with chart={chartType:"column", ' +
-                  'config:{axisYTitle:"Revenue (USD)"}}.',
-              ),
             chartFields: z
               .record(z.string(), text.max(200))
               .optional()
               .describe(
-                'Explicit native chart field -> exact query column mapping, e.g. ' +
+                'Bind the existing query BEFORE generating the report: native chart field -> ' +
+                  'exact query column. Put this beside chart, not inside chart.config. Example: ' +
                   '{category:"month",value:"total_revenue"} for column/bar/pie; ' +
                   '{time:"month",value:"total_revenue"} for line/area. ' +
                   'Only these fields are projected into chart rows; saved evidence is unchanged. ' +
-                  'No guessing or numeric conversion. Cannot combine with chartConfigField.',
+                  'Reuse the same queryId; do not rerun SQL just to rename columns. ' +
+                  'Omit only if rows already have native fields. No guessing or numeric conversion. ' +
+                  'Cannot combine with chartConfigField.',
+              ),
+            chart: artifactChartSpec
+              .optional()
+              .describe(
+                'Chart type and display options only. Bind existing query columns with the ' +
+                  'sibling chartFields, or use chartConfigField for non-row shapes. ' +
+                  'Without either binding, rows must already have native fields for this chartType. ' +
+                  'Never put data, categories, series or percent inline in config.',
               ),
             chartConfigField: text
               .max(200)
@@ -173,7 +173,7 @@ function bindChart(
     const issue = parsed.error.issues[0]!;
     throw new Error(
       `Invalid ${chart.chartType} chart at ${issue.path.join('.')}: ${issue.message}. ` +
-        'Bind native fields with chartFields or SQL aliases; numeric values must be numbers. ' +
+        'Set chartFields to map native fields to existing query columns; numeric values must be numbers. ' +
         'Use chartConfigField for non-row data.',
     );
   }
@@ -226,6 +226,28 @@ export async function createArtifact(
     }
   }
 
+  // 参数绑定错误必须在渲染和写文件前失败，修正映射后可复用 queryId 与输出路径。
+  const boundCharts = new Map<number, ChartSpec>();
+  for (const [index, section] of report.sections.entries()) {
+    const query = get(section.queryId);
+    if (!section.chart || query.result.truncated || !query.result.data.length) {
+      continue;
+    }
+    try {
+      boundCharts.set(index, bindChart(section, query));
+    } catch (error) {
+      throw new Error(
+        `sections[${index}] (${section.queryId}): ${
+          error instanceof Error ? error.message : String(error)
+        } ` +
+          `Available query columns: ${query.result.schema
+            .map((column) => column.name)
+            .join(', ')}. ` +
+          'Fix the section binding and retry with the same queryId and output path. No output files were created.',
+      );
+    }
+  }
+
   // -----------------------------------------------------------------------------
   // 渲染图表；单图失败时保留表格与 SQL
   // -----------------------------------------------------------------------------
@@ -239,7 +261,7 @@ export async function createArtifact(
         continue;
       }
       try {
-        const spec = bindChart(section, get(section.queryId));
+        const spec = boundCharts.get(index) ?? bindChart(section, get(section.queryId));
         const rendered = await renderChart(spec, join(directory, `chart-${index}.html`));
         charts.push({ section: index + 1, html: await readFile(rendered.output, 'utf8') });
       } catch (error) {

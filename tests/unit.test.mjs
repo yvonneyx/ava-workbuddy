@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AVACommandError, checkEnvironment, Runtime } from '../lib/index.js';
@@ -731,17 +731,33 @@ test('monthly revenue fields require explicit mapping and leave query evidence u
       queryId: result.queryId,
       chart: { chartType: 'column', config: { axisYTitle: 'Revenue (USD)' } },
     };
-    let next = 0;
     const report = (extra = {}) =>
       runtime.artifact({
-        output: join(directory, `${next++}.html`),
+        output: join(directory, 'report.html'),
         title: 'Revenue',
         summary: 'Summary',
         sections: [{ ...section, ...extra }],
       });
-    const invalid = await report();
-    assert.match(invalid.chartErrors[0].message, /config\.data\.0\.category/);
-    assert.match(invalid.chartErrors[0].message, /chartFields/);
+    await assert.rejects(report(), (error) => {
+      assert.match(error.message, /sections\[0\].*config\.data\.0\.category/);
+      assert.match(error.message, /chartFields/);
+      assert.match(error.message, /Available query columns: month, rows_cnt, total_revenue/);
+      assert.match(error.message, /same queryId and output path/);
+      return true;
+    });
+    assert.deepEqual(await readdir(directory), []);
+    await assert.rejects(
+      runtime.artifact({
+        output: join(directory, 'report.html'),
+        title: 'Revenue',
+        summary: 'Summary',
+        sections: [
+          { ...section, chartFields: { category: 'month', value: 'total_revenue' } },
+          section,
+        ],
+      }),
+      /sections\[1\]/,
+    );
     assert(!runtime.calls.some(({ args }) => args[0] === 'viz'));
     const mapped = await report({ chartFields: { category: 'month', value: 'total_revenue' } });
     assert.deepEqual(mapped.chartErrors, []);
@@ -751,15 +767,19 @@ test('monthly revenue fields require explicit mapping and leave query evidence u
       category: 'month',
       value: 'total_revenue',
     });
-    const missing = await report({ chartFields: { category: 'month', value: 'missing' } });
-    assert.match(missing.chartErrors[0].message, /Unknown result field: missing/);
-    const conflicting = await report({
-      chartFields: { category: 'month' },
-      chartConfigField: 'month',
-    });
-    assert.match(conflicting.chartErrors[0].message, /not both/);
-    const empty = await report({ chartFields: {} });
-    assert.match(empty.chartErrors[0].message, /at least one/);
+    await assert.rejects(
+      report({ chartFields: { category: 'month', value: 'missing' } }),
+      /Unknown result field: missing/,
+    );
+    await assert.rejects(
+      report({
+        chartFields: { category: 'month' },
+        chartConfigField: 'month',
+      }),
+      /not both/,
+    );
+    await assert.rejects(report({ chartFields: {} }), /at least one/);
+    assert.equal(runtime.calls.filter(({ args }) => args[0] === 'query').length, 1);
   } finally {
     await runtime.close();
     await rm(directory, { recursive: true, force: true });
@@ -935,22 +955,25 @@ test('artifact refuses inline chart data and ambiguous config evidence without c
     runtime.command = async () => rows;
     const result = await runtime.query(id, 'SELECT 1 AS value');
     for (const key of ['data', 'categories', 'series', 'percent']) {
-      const rejected = await report(result.queryId, {
-        chartType: 'pie',
-        config: { [key]: key === 'data' ? [{ category: 'invented', value: 1 }] : 'invented' },
-      });
-      assert.match(rejected.chartErrors[0].message, /must come from query evidence/);
+      await assert.rejects(
+        report(result.queryId, {
+          chartType: 'pie',
+          config: { [key]: key === 'data' ? [{ category: 'invented', value: 1 }] : 'invented' },
+        }),
+        /must come from query evidence/,
+      );
     }
-    const missing = await report(result.queryId, { chartType: 'histogram', config: {} }, 'missing');
-    assert.match(missing.chartErrors[0].message, /Unknown result field/);
+    await assert.rejects(
+      report(result.queryId, { chartType: 'histogram', config: {} }, 'missing'),
+      /Unknown result field/,
+    );
     runtime.command = async () => ({
       schema: [{ name: 'chart_config' }],
       data: [{ chart_config: {} }, { chart_config: {} }],
     });
     const multiple = await runtime.query(id, 'SELECT config AS chart_config');
-    assert.match(
-      (await report(multiple.queryId, { chartType: 'histogram', config: {} }, 'chart_config'))
-        .chartErrors[0].message,
+    await assert.rejects(
+      report(multiple.queryId, { chartType: 'histogram', config: {} }, 'chart_config'),
       /single-row/,
     );
     runtime.command = async () => ({
@@ -958,11 +981,10 @@ test('artifact refuses inline chart data and ambiguous config evidence without c
       data: [{ chart_config: 'not an object' }],
     });
     const invalid = await runtime.query(id, 'SELECT config AS chart_config');
-    assert.equal(
-      (await report(invalid.queryId, { chartType: 'histogram', config: {} }, 'chart_config'))
-        .chartErrors.length,
-      1,
+    await assert.rejects(
+      report(invalid.queryId, { chartType: 'histogram', config: {} }, 'chart_config'),
     );
+    assert.deepEqual(await readdir(directory), []);
     assert(!runtime.calls.some(({ args }) => args[0] === 'viz'));
   } finally {
     runtime.command = async () => ({ datasetId: id, disposed: true });

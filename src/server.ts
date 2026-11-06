@@ -214,7 +214,15 @@ export function createServer(runtime = new Runtime()) {
   );
   register(
     'ava_artifact',
-    'Use for a requested report: create one analysis HTML and matching evidence JSON with ' +
+    'Create a report from existing queryIds. BEFORE calling, inspect each query result and ' +
+      'bind its columns to native chart fields. Complete section example for query columns ' +
+      'month,total_revenue: {question:"Monthly revenue?",conclusion:"...",queryId:"q_...",' +
+      'chartFields:{category:"month",value:"total_revenue"},' +
+      'chart:{chartType:"column",config:{axisYTitle:"Revenue (USD)"}}}. ' +
+      'chartFields belongs beside chart at section level. Reuse the queryId; do not rerun SQL ' +
+      'merely to rename columns. For histogram/dual-axes/liquid use chartConfigField instead. ' +
+      'Invalid bindings return an error BEFORE creating files; fix the mapping and retry the ' +
+      'same output path. Render one analysis HTML and matching evidence JSON with ' +
       'questions, conclusions, charts, tables, and exact SQL. Reference ava_query ' +
       'queryIds from this connection, including disposed datasets. Truncated ' +
       'results are not plotted; chartErrors preserves failures while tables and ' +

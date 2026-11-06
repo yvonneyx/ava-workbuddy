@@ -144,15 +144,16 @@ AVA 自动为 ClickHouse、Supabase 选择远程引擎，其余使用 DuckDB。`
   }
   ```
 
-  映射只影响图表数据，结果表与证据保留原列名。省略映射时须使用原生字段：柱状图 `category/value`，
-  折线图 `time/value`。不猜测字段，也不自动转换数值。
+  映射只影响图表数据，结果表与证据保留原列名。省略映射时须使用原生字段：柱状图 `category/value`，折
+  线图 `time/value`。不猜测字段，也不自动转换数值。
 
 - 特殊数据形状使用 `chartConfigField`，不能与 `chartFields` 混用。绑定后的配置仍按同一份图表 schema
-  校验；不匹配记录在 `chartErrors`，结果表与 SQL 保留，不会把无效配置当作成功图表。 `ArtifactInput`
-  字段与校验以[输入 schema](../src/artifact.ts) 为准，原生数据形状由
-  [共享图表 schema](../src/contracts.ts) 说明。
-- 图表失败时报告仍保留表格和 SQL，错误见 `chartErrors`。工具不核验结论文案； `chartPreviewVerified`
-  返回 false，宿主需另行验证图表预览。
+  校验。绑定或字段类型错误会在写文件前拒绝，返回章节、可用查询列和修正提示；补上映射即可复用原
+  `queryId` 与输出路径，无需重跑 SQL 改列名。`ArtifactInput` 字段与校验
+  以[输入 schema](../src/artifact.ts) 为准，原生数据形状由 [共享图表 schema](../src/contracts.ts) 说
+  明。
+- 渲染失败、空结果或截断结果时，报告仍保留表格和 SQL，错误见 `chartErrors`。工具不核验结论文案；
+  `chartPreviewVerified` 返回 false，宿主需另行验证图表预览。
 
 ### 错误与清理
 
