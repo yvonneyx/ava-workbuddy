@@ -12,7 +12,7 @@ await mkdir(dist, { recursive: true });
 const staging = await mkdtemp(join(tmpdir(), 'ava-workbuddy-pack-'));
 const archives = [];
 try {
-  for (const [kind, directory] of [['connector', 'ava-connector'], ['expert', 'ava-data-analyst'], ['skill', 'ava']]) {
+  for (const [kind, directory] of [['connector', 'ava-connector'], ['expert', 'ava-workbuddy-analyst'], ['skill', 'ava']]) {
     const destination = join(staging, directory);
     await mkdir(destination);
     if (kind === 'connector') await cp(join(root, 'connector'), destination, { recursive: true });
