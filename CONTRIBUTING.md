@@ -19,7 +19,7 @@ npm run test:integration
 
 - 开启 `strict`、`noUncheckedIndexedAccess` 和 `exactOptionalPropertyTypes`，不要用 `any` 或关闭检查来绕过类型错误。
 - `Runtime` 管理会话和任务生命周期；`ava.ts` 集中处理 AVA 子进程、环境和文件路径校验；`server.ts` 负责 MCP 协议；示例保持在 `demo.ts`。库导入不得写 stdout、启动服务或安装信号处理器。
-- 在文件、子进程和 MCP 边界保留校验。运行命令使用参数数组和 stdin，不拼接 shell；不转发模型凭据；不要覆盖用户文件。
+- 在文件、子进程和 MCP 边界保留校验。运行命令使用参数数组和 stdin，不拼接 shell；只调用无需模型的 AVA 命令；不要覆盖用户文件。
 - 会话只属于创建它的运行时；同一会话串行执行。超时、输出溢出或不可信响应都可能留下仍在执行的操作，不能自动重试或强制释放。
 - 修改行为时补充能复现问题的测试。协议和安装方式变化必须跑集成测试与真实打包安装测试。
 - Skill 只维护 `skills/ava/` 一份，分发时自动复制。文档中的版本与安装配置必须同步。

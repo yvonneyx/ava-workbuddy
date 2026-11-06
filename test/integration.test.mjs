@@ -9,7 +9,7 @@ import { root } from '../lib/metadata.js';
 
 async function connect() {
   const client = new Client({ name: 'ava-workbuddy-integration-test', version: '0.1.0' });
-  const env = Object.fromEntries(Object.entries(process.env).filter(([key, value]) => !key.startsWith('OPENAI_') && typeof value === 'string'));
+  const env = Object.fromEntries(Object.entries(process.env).filter(([, value]) => typeof value === 'string'));
   const transport = new StdioClientTransport({ command: process.execPath, args: [join(root, 'lib/cli.js'), 'serve'], env, stderr: 'pipe' });
   let stderr = ''; transport.stderr.on('data', (chunk) => { stderr += chunk; });
   await client.connect(transport);

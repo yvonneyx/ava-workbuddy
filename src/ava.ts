@@ -43,14 +43,9 @@ export class AVACommandError extends Error {
 
 export function runCommand(args: string[], input?: string): Promise<unknown> {
   checkEnvironment();
-  const env = { ...process.env };
-  // WorkBuddy supplies the reasoning; AVA must not inherit model credentials.
-  delete env.OPENAI_API_KEY;
-  delete env.OPENAI_MODEL;
-  delete env.OPENAI_BASE_URL;
   return new Promise((resolve, reject) => {
     const child = execFile(process.execPath, [avaCLI, ...args], {
-      env, cwd: root, timeout: 75_000, maxBuffer: 20 * 1024 * 1024, encoding: 'utf8',
+      cwd: root, timeout: 75_000, maxBuffer: 20 * 1024 * 1024, encoding: 'utf8',
     }, (error, stdout, stderr) => {
       if (error) {
         reject(new AVACommandError(error.killed
