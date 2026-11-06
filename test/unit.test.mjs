@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AVACommandError, checkEnvironment, Runtime } from '../lib/index.js';
@@ -9,6 +9,7 @@ import { outputPath, sourcePath } from '../lib/paths.js';
 import { root } from '../lib/metadata.js';
 import { validate } from '../scripts/validate.mjs';
 import { createServer } from '../lib/server.js';
+import { runInNewContext } from 'node:vm';
 import { Client, InMemoryTransport } from '@modelcontextprotocol/client';
 
 const id = 'ds_test_012345abcdef';
@@ -65,7 +66,9 @@ test('prevent concurrent commands and preserve SQL as stdin rather than shell in
   const sql = "SELECT '$(literal)' AS value";
   const first = runtime.query(id, sql, 10);
   await assert.rejects(runtime.query(id, 'SELECT 2'), /already running/);
-  release(rows); assert.deepEqual(await first, rows);
+  release(rows); const result = await first;
+  assert.match(result.queryId, /^q_/);
+  const { queryId, ...data } = result; assert.deepEqual(data, rows);
   assert.deepEqual(runtime.calls, [{ args: ['query', id, '--dsl', '-', '--max-rows', '10'], input: sql }]);
 });
 
@@ -165,4 +168,130 @@ test('public library imports have no CLI side effects; help and errors use the c
 
 test('WorkBuddy packages reference complete, version-consistent resources', async () => {
   assert.equal((await validate()).valid, true);
+});
+
+test('artifact uses immutable executed evidence after disposal and escapes untrusted content', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'ava-artifact-'));
+  const runtime = await loaded();
+  try {
+    runtime.command = async (args) => args[0] === 'query' ? { schema: [{ name: 'value' }], data: [{ value: '</script><img src=x onerror=alert(1)>' }] }
+      : { datasetId: id, disposed: true };
+    const sql = "SELECT '</script><img src=x onerror=alert(1)>' AS value";
+    const result = await runtime.query(id, sql);
+    result.data[0].value = 'caller mutation';
+    await runtime.dispose(id);
+    const output = join(directory, 'artifact.html');
+    const artifact = await runtime.artifact({ output, title: '<img src=x onerror=alert(2)>', summary: 'A & B',
+      sections: [{ question: 'Original question', conclusion: '<script>alert(3)</script>', queryId: result.queryId }] });
+    const html = await readFile(output, 'utf8');
+    assert(!html.includes('<img src=x')); assert(!html.includes('<script>alert(3)'));
+    assert(html.includes('\\u003cimg src=x')); assert(!html.includes('caller mutation'));
+    const payload = JSON.parse(html.match(/<script id="artifact-data" type="application\/json">(.*?)<\/script>/s)[1]);
+    assert.deepEqual(JSON.parse(await readFile(artifact.dataOutput, 'utf8')), payload);
+    assert.equal(payload.queries[0].sql, sql);
+    assert.equal(payload.queries[0].result.data[0].value, '</script><img src=x onerror=alert(1)>');
+    assert.equal(payload.queries[0].source, 'sales.csv');
+    assert(!html.includes(root), 'Report must not leak the absolute source path');
+    await assert.rejects(runtime.artifact({ output, title: 'Other', summary: 'Other', sections: [{ question: 'Q', conclusion: 'C', queryId: result.queryId }] }), /EEXIST/);
+    assert.equal(await readFile(output, 'utf8'), html);
+  } finally { await runtime.close(); await rm(directory, { recursive: true, force: true }); }
+});
+
+test('artifact preserves existing JSON and rolls back new HTML on collision', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'ava-artifact-collision-'));
+  const runtime = await loaded();
+  try {
+    runtime.command = async () => rows;
+    const result = await runtime.query(id, 'SELECT 1 AS value');
+    const output = join(directory, 'artifact.html');
+    const dataOutput = join(directory, 'artifact.json');
+    await writeFile(dataOutput, 'existing evidence');
+    await assert.rejects(runtime.artifact({ output, title: 'Report', summary: 'Summary',
+      sections: [{ question: 'Q', conclusion: 'C', queryId: result.queryId }] }), /EEXIST/);
+    assert.equal(await readFile(dataOutput, 'utf8'), 'existing evidence');
+    await assert.rejects(readFile(output), /ENOENT/);
+  } finally { runtime.command = async () => ({ datasetId: id, disposed: true }); await runtime.close(); await rm(directory, { recursive: true, force: true }); }
+});
+
+test('artifact rejects unknown evidence and invalid metrics instead of inventing results', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'ava-artifact-'));
+  const runtime = await loaded();
+  try {
+    runtime.command = async () => rows;
+    const result = await runtime.query(id, 'SELECT 1 AS value');
+    const base = { output: join(directory, 'artifact.html'), title: 'Report', summary: 'Summary', sections: [{ question: 'Q', conclusion: 'C', queryId: result.queryId }] };
+    await assert.rejects(runtime.artifact({ ...base, sections: [{ ...base.sections[0], queryId: 'invented' }] }), /Unknown or expired queryId/);
+    await assert.rejects(runtime.artifact({ ...base, metrics: [{ label: 'Value', queryId: result.queryId, field: 'missing' }] }), /Unknown result field/);
+    await assert.rejects(runtime.artifact({ ...base, metrics: [{ label: 'Value', queryId: result.queryId, field: 'value', rowIndex: 99 }] }), /outside query result/);
+    for (let i = 0; i < 32; i++) await runtime.query(id, 'SELECT 1 AS value');
+    await assert.rejects(runtime.artifact(base), /Unknown or expired queryId/);
+  } finally { runtime.command = async () => ({ datasetId: id, disposed: true }); await runtime.close(); await rm(directory, { recursive: true, force: true }); }
+});
+
+test('artifact maps chart data from saved results and retains tables on chart failure or truncation', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'ava-artifact-'));
+  const runtime = await loaded();
+  const chart = { type: 'bar', categoryField: 'label', valueField: 'value' };
+  try {
+    runtime.command = async (args, input) => {
+      if (args[0] === 'query') return { schema: [{ name: 'label' }, { name: 'value' }], data: [{ label: 'A', value: 7 }] };
+      if (args[0] === 'viz') {
+        assert.deepEqual(JSON.parse(input).config.data, [{ category: 'A', value: 7 }]);
+        const output = args.at(-1); await writeFile(output, '<html><body>chart</body></html>'); return { output };
+      }
+      return { datasetId: id, disposed: true };
+    };
+    const result = await runtime.query(id, 'SELECT label, value FROM data');
+    const base = { title: 'Report', summary: 'Summary', sections: [{ question: 'Q', conclusion: 'C', queryId: result.queryId, chart }] };
+    const output = join(directory, 'chart.html');
+    assert.deepEqual((await runtime.artifact({ ...base, output })).chartErrors, []);
+    const html = await readFile(output, 'utf8');
+    assert(html.includes('sandbox="allow-scripts"')); assert(html.includes('\\u003chtml>')); assert(!html.includes('allow-same-origin'));
+    runtime.command = async ([name]) => { if (name === 'viz') throw new Error('renderer failed'); return { datasetId: id, disposed: true }; };
+    const failed = await runtime.artifact({ ...base, output: join(directory, 'failed.html') });
+    assert.deepEqual(failed.chartErrors, [{ section: 1, message: 'renderer failed' }]);
+    assert((await readFile(failed.output, 'utf8')).includes('<table>'));
+    runtime.command = async () => ({ schema: [{ name: 'label' }, { name: 'value' }], data: [{ label: 'A', value: 7 }], truncated: true });
+    const truncated = await runtime.query(id, 'SELECT label, value FROM data', 1);
+    const limited = await runtime.artifact({ ...base, output: join(directory, 'limited.html'), sections: [{ ...base.sections[0], queryId: truncated.queryId }] });
+    assert.match(limited.chartErrors[0].message, /截断/);
+    assert((await readFile(limited.output, 'utf8')).includes('本报告包含截断'));
+  } finally { runtime.command = async () => ({ datasetId: id, disposed: true }); await runtime.close(); await rm(directory, { recursive: true, force: true }); }
+});
+
+test('different report fields use byte-identical templates with a single JSON data slot', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'ava-template-'));
+  const runtime = await loaded();
+  try {
+    runtime.command = async () => rows;
+    const result = await runtime.query(id, 'SELECT 1 AS value');
+    const fields = { title: 'Report A', summary: 'First question', sections: [{ question: 'Question A', conclusion: 'Conclusion A', queryId: result.queryId }] };
+    const first = await runtime.artifact({ ...fields, output: join(directory, 'first.html') });
+    const second = await runtime.artifact({ ...fields, title: 'Report B', summary: 'Different summary', sections: [fields.sections[0], { question: 'Question B', conclusion: 'Conclusion B', queryId: result.queryId }], output: join(directory, 'second.html') });
+    const template = await readFile(join(root, 'templates/artifact.html'), 'utf8');
+    for (const artifact of [first, second]) {
+      const html = await readFile(artifact.output, 'utf8');
+      assert.equal(html.replace(/<script id="artifact-data" type="application\/json">.*?<\/script>/s, '<!-- ARTIFACT_DATA -->'), template);
+    }
+    assert(!template.includes('Report A') && !template.includes('Question B'));
+    const reportStyles = template.match(/<style>(.*?)<\/style>/s)[1].replace(/\.sql-token-[\w-]+\s*\{[^}]*\}/g, '');
+    for (const [, hex] of reportStyles.matchAll(/#([a-f0-9]{6})\b/gi)) assert(hex.slice(0, 2) === hex.slice(2, 4) && hex.slice(2, 4) === hex.slice(4, 6), `Not grayscale: ${hex}`);
+  } finally { runtime.command = async () => ({ datasetId: id, disposed: true }); await runtime.close(); await rm(directory, { recursive: true, force: true }); }
+});
+
+test('SQL highlighting preserves exact text and distinguishes literals, comments and keywords', async () => {
+  const template = await readFile(join(root, 'templates/artifact.html'), 'utf8');
+  const start = template.indexOf('function sqlTokens(sql)');
+  const end = template.indexOf('function highlightSQL(', start);
+  const tokenize = runInNewContext(template.slice(start, end) + '; sqlTokens');
+  const sql = `-- SELECT is a comment\r\nSELECT SUM(value), 'it''s </script><img src=x onerror=alert(1)>' AS "FROM", $$WHERE$$, $tag$AND$tag$ FROM data WHERE value >= -12.5e2 AND fraction < .25 /* GROUP BY */;`;
+  const tokens = tokenize(sql);
+  assert.equal(tokens.map(token => token.text).join(''), sql);
+  const typed = type => Array.from(tokens.filter(token => token.type === type), token => token.text);
+  assert.deepEqual(typed('keyword'), ['SELECT', 'AS', 'FROM', 'WHERE', 'AND']);
+  assert.deepEqual(typed('function'), ['SUM']);
+  assert.deepEqual(typed('number'), ['12.5e2', '.25']);
+  assert.equal(typed('string').length, 3);
+  assert.deepEqual(typed('identifier'), ['"FROM"']);
+  assert.equal(typed('comment').length, 2);
 });

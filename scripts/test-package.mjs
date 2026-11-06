@@ -8,6 +8,7 @@ import { root, metadata } from '../lib/metadata.js';
 const archive = join(root, 'dist', `ava-workbuddy-${metadata.version}.tgz`);
 const files = execFileSync('tar', ['-tzf', archive], { encoding: 'utf8' }).trim().split('\n');
 assert(files.includes('package/lib/index.js') && files.includes('package/lib/index.d.ts'));
+assert(files.includes('package/templates/artifact.html'));
 assert(files.includes('package/npm-shrinkwrap.json'));
 assert(!files.some((path) => /(?:node_modules|\/test\/|\/scripts\/|\.env)/.test(path)));
 const directory = await mkdtemp(join(tmpdir(), 'ava-workbuddy-install-'));

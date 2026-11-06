@@ -26,7 +26,7 @@ test('MCP first use, CSV/XLSX, read-only queries, charts, errors, and restart', 
   const connection = await connect(); const client = connection.client;
   let id;
   try {
-    const tools = await client.listTools(); assert.equal(tools.tools.length, 8);
+    const tools = await client.listTools(); assert.equal(tools.tools.length, 9);
     assert.equal((await call(client, 'ava_check')).avaVersion, '4.0.0');
     const file = join(directory, '销售 $(literal) 数据.csv');
     await copyFile(join(root, 'examples/sales.csv'), file);
@@ -37,6 +37,11 @@ test('MCP first use, CSV/XLSX, read-only queries, charts, errors, and restart', 
     assert(schema.models.some((model) => model.tableReference?.table === 'data'));
     const result = await call(client, 'ava_query', { datasetId: id, sql: 'SELECT SUM(revenue) AS revenue FROM data' });
     assert.equal(Number(result.data[0].revenue), 67500);
+    const report = await call(client, 'ava_artifact', { output: join(directory, 'artifact.html'), title: '集成测试报告', summary: '核对两个月收入合计。',
+      metrics: [{ label: '合计', queryId: result.queryId, field: 'revenue', unit: '美元' }],
+      sections: [{ question: '总收入是多少？', conclusion: '合计 67,500 美元。', queryId: result.queryId }] });
+    const reportHTML = await readFile(report.output, 'utf8');
+    assert(reportHTML.includes('67,500') && reportHTML.includes('SELECT SUM(revenue)'));
     const truncated = await call(client, 'ava_query', { datasetId: id, sql: 'SELECT * FROM data', maxRows: 1 });
     assert.equal(truncated.truncated, true);
     const mutation = await client.callTool({ name: 'ava_query', arguments: { datasetId: id, sql: 'DELETE FROM data' } });
@@ -54,6 +59,21 @@ test('MCP first use, CSV/XLSX, read-only queries, charts, errors, and restart', 
     assert.equal(missing.isError, true); assert.deepEqual(await readFile(output), beforeMissing);
     const demo = await call(client, 'ava_demo', { outputDirectory: join(directory, 'demo') });
     assert.equal(demo.change, 7500); assert.equal(demo.chartPreviewVerified, false);
+    assert.deepEqual(demo.artifactChartErrors, []);
+    assert((await readFile(demo.artifact, 'utf8')).includes('收入变化分析'));
+    const artifactData = JSON.parse(await readFile(demo.artifactData, 'utf8'));
+    assert.equal(artifactData.sections.length, 4);
+    assert.equal(demo.queryCount, 4);
+    assert.equal(new Set(artifactData.sections.map(section => section.queryId)).size, 4);
+    assert.equal(artifactData.queries.length, 4);
+    const evidence = new Map(artifactData.queries.map(query => [query.queryId, query]));
+    assert.equal(Number(evidence.get(artifactData.sections[0].queryId).result.data[0].revenue), 30000);
+    assert.equal(evidence.get(artifactData.sections[1].queryId).result.data.length, 4);
+    assert.equal(Number(evidence.get(artifactData.sections[2].queryId).result.data[0].revenue), 6000);
+    assert.equal(Number(evidence.get(artifactData.sections[3].queryId).result.data[0].reconciliation_difference), 0);
+    assert.equal(artifactData.charts.length, 3);
+    const stripData = html => html.replace(/<script id="artifact-data" type="application\/json">.*?<\/script>/s, '<!-- ARTIFACT_DATA -->');
+    assert.equal(stripData(await readFile(demo.artifact, 'utf8')), stripData(await readFile(demo.alternateArtifact, 'utf8')));
     const config = JSON.parse(await readFile(join(demo.outputDirectory, 'chart.json'), 'utf8'));
     assert.equal(config.config.data.reduce((sum, row) => sum + row.value, 0), 7500);
     const xlsx = (await call(client, 'ava_source', { path: join(root, 'test/fixtures/销售 数据.xlsx') })).datasetId;

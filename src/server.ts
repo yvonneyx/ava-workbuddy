@@ -5,6 +5,7 @@ import { Runtime } from './runtime.js';
 import { checkEnvironment } from './environment.js';
 import { metadata } from './metadata.js';
 import { runDemo } from './demo.js';
+import { artifactInput } from './artifact.js';
 
 export function createServer(runtime = new Runtime()) {
   const server = new McpServer({ name: 'ava-workbuddy', version: metadata.version });
@@ -38,7 +39,7 @@ export function createServer(runtime = new Runtime()) {
   }), ({ outputDirectory }) => runDemo(outputDirectory));
   register('ava_source', 'Load a user-supplied local CSV/XLSX file with DuckDB. Returns datasetId; follow with ava_schema. Sessions expire after 30 idle minutes.', z.object({ path: z.string().describe('Absolute local attachment path; no URLs') }), ({ path }) => runtime.source(path));
   register('ava_schema', 'Inspect real tables, columns, types, language, and SQL rules before writing queries.', z.object({ datasetId: id }), ({ datasetId }) => runtime.schema(datasetId), { readOnlyHint: true });
-  register('ava_query', 'Execute read-only DuckDB SQL against the loaded dataset. Aggregate in SQL. Check truncation before conclusions. SQL must implement the confirmed business definitions; semantic metadata does not rewrite SQL.', z.object({
+  register('ava_query', 'Execute read-only DuckDB SQL and return queryId for artifact evidence. The latest 32 results and exact SQL are retained in this connection. Check truncation and scope. Semantic metadata does not rewrite SQL.', z.object({
     datasetId: id, sql: z.string().min(1).max(512 * 1024), maxRows: z.number().int().min(1).max(10000).optional(),
   }), ({ datasetId, sql, maxRows }) => runtime.query(datasetId, sql, maxRows), { readOnlyHint: true });
   register('ava_semantic', 'Read business definitions, or replace the COMPLETE session definition with supplied JSON. Read and merge existing definitions first. Does not persist definitions or rewrite SQL.', z.object({
@@ -47,6 +48,8 @@ export function createServer(runtime = new Runtime()) {
   register('ava_viz', 'Render verified query results as a GPT-Vis chart HTML. Spec requires chartType and config, not syntax. Absolute output path must be new; parent directory must exist. HTML needs network for GPT-Vis; generation does not prove visual rendering.', z.object({
     spec: z.object({ chartType: z.string(), config: z.record(z.string(), z.unknown()) }).strict(), output: z.string(),
   }), ({ spec, output }) => runtime.viz(spec, output));
+  register('ava_artifact', 'Create one fixed-template analysis HTML and matching evidence JSON with user questions, assistant conclusions, charts, tables, and exact executed SQL. Reference ava_query queryIds from this connection; never supply copied results or invented IDs. Metrics read numeric fields from saved results. Charts map category/value fields directly from the same result (bar, column, line). Embed data and sandboxed chart HTML; chart runtime needs network. Use NEW .html and matching .json paths for each revision. This saves assistant-written conclusions but does not independently verify them or browser rendering.', artifactInput,
+    (input) => runtime.artifact(input));
   register('ava_dispose', 'Release an idle dataset owned by this connection. Do not use to cancel a running or timed-out query. Saved HTML and result files remain available.', z.object({ datasetId: id }), ({ datasetId }) => runtime.dispose(datasetId));
   const close = () => {
     cleanup ??= Promise.resolve().then(async () => {

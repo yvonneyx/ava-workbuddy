@@ -30,10 +30,13 @@ Release 的 TGZ 已编译，使用者不需要 TypeScript 编译器。源码开�
 | `query(datasetId, sql, maxRows?)` | `QueryResult`；只读 SQL，最多 512 KiB；返回行数 1–10000，默认 200 |
 | `semantic(datasetId, definition?)` | `SemanticDefinition`；省略时读取，传入对象时完整替换，不自动改写 SQL |
 | `viz(spec, output)` | `{ output }`；`spec` 包含 `chartType` 和 `config`，输出必须是新 `.html` 绝对路径，父目录已存在 |
+| `artifact(input)` | 固定模板分析 HTML；按 `queryId` 内嵌执行结果、SQL、来源和图表，自动保存同名 `.json`，返回 `output`、`dataOutput`、章节数、查询数及 `chartErrors`；两份文件均不得已存在 |
 | `dispose(datasetId)` | `{ datasetId, disposed: true }`；释放当前实例拥有的空闲会话 |
 | `close()` | `CleanupReport`；拒绝新任务、等待已接受任务、释放确定空闲的会话；重复调用复用同一结果 |
 
 `QueryResult.data` 为 `Record<string, unknown>[]`。字段来自用户数据，取值前检查或转换类型；不要假定数字一定以 JavaScript number 返回。`truncated === true` 时结果不完整，需修改聚合或限制后再分析。
+
+当前源码新增（尚未发布）：`query()` 返回兼容 `QueryResult` 的 `ExecutedQueryResult`，额外包含 `queryId`。同一 Runtime 保留最近 32 次查询的不可变证据快照，数据集释放后仍可生成报告；关闭 Runtime 后清除。`ArtifactInput` 从公开库入口导出，完整参数见 [artifact 工具说明](../skills/ava/references/tools.md#analysis-artifact)。报告生成不会自行验证助手结论，`chartPreviewVerified` 保持 false，直到宿主实际预览。
 
 ```ts
 import { Runtime } from 'ava-workbuddy';
@@ -73,7 +76,7 @@ interface CleanupReport {
 ## 首次分析与环境检查
 
 - `checkEnvironment()`：检查 Node.js、系统和固定 AVA 版本；不验证 socket 可用性或图表视觉效果。
-- `runDemo(newAbsoluteDirectory?)`：运行并核对模拟销售数据，保存 CSV、SQL、JSON、报告和 HTML。省略目录时使用新临时目录；已有目录会被拒绝。`sessionDisposedAfterCompletion` 反映清理结果。
+- `runDemo(newAbsoluteDirectory?)`：用 8 行模拟销售数据依次执行四轮只读查询（总体、产品贡献、回落产品追问、增量核对），核对后保存 CSV、SQL、JSON、单图 HTML 和完整 `artifact.html`（当前源码新增）。返回 `artifact`、`artifactData`（自动保存的模板字段 JSON）、`queryCount`、`alternateArtifact`（同模板的单问题示例）及 `artifactChartErrors`。省略目录时使用新临时目录；已有目录会被拒绝。`sessionDisposedAfterCompletion` 反映清理结果。
 - `smoke()`：在临时目录完成同样的分析并清理示例文件，返回计算和 HTML 生成状态。HTML 成功不代表联网预览已通过。
 
 ## 嵌入 MCP

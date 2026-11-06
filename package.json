@@ -23,6 +23,7 @@
     "lib",
     "src",
     "examples",
+    "templates",
     "skills",
     "docs",
     "LICENSE",

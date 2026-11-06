@@ -1,18 +1,22 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod/v4';
 import { AVACommandError, runCommand } from './command.js';
 import { outputPath, sourcePath } from './paths.js';
 import {
   sourceResult, schemaResult, queryResult, semanticResult, vizResult, disposeResult,
   type ChartSpec, type CleanupReport, type SemanticDefinition, type SourceResult,
-  type SchemaResult, type QueryResult,
+  type SchemaResult, type ExecutedQueryResult,
 } from './contracts.js';
+import { createArtifact, type ArtifactInput, type QueryEvidence } from './artifact.js';
 
 /** One owner for a set of local AVA sessions. Always await close() in a finally block. */
 export class Runtime {
   #sessions = new Set<string>();
+  #sources = new Map<string, string>();
+  #queries = new Map<string, QueryEvidence>();
   #busy = new Set<string>();
   #uncertain = new Set<string>();
   #pending = new Set<Promise<unknown>>();
@@ -55,8 +59,10 @@ export class Runtime {
 
   source(path: string): Promise<SourceResult> {
     return this.#run(async () => {
-      const result = await this.#execute(['source', await sourcePath(path)], sourceResult);
+      const resolved = await sourcePath(path);
+      const result = await this.#execute(['source', resolved], sourceResult);
       this.#sessions.add(result.datasetId);
+      this.#sources.set(result.datasetId, basename(resolved));
       return result;
     });
   }
@@ -65,12 +71,20 @@ export class Runtime {
     return this.#session(id, () => this.#execute(['schema', id], schemaResult));
   }
 
-  async query(id: string, sql: string, maxRows?: number): Promise<QueryResult> {
+  async query(id: string, sql: string, maxRows?: number): Promise<ExecutedQueryResult> {
     if (!sql.trim() || Buffer.byteLength(sql) > 512 * 1024) throw new Error('SQL must be non-empty and at most 512 KiB.');
     if (maxRows !== undefined && (!Number.isInteger(maxRows) || maxRows < 1 || maxRows > 10000)) throw new Error('maxRows must be between 1 and 10000.');
-    return this.#session(id, () => this.#execute(
-      ['query', id, '--dsl', '-', ...(maxRows ? ['--max-rows', String(maxRows)] : [])], queryResult, sql,
-    ));
+    return this.#session(id, async () => {
+      const result = await this.#execute(
+        ['query', id, '--dsl', '-', ...(maxRows ? ['--max-rows', String(maxRows)] : [])], queryResult, sql,
+      );
+      const queryId = `q_${randomUUID()}`;
+      this.#queries.set(queryId, { queryId, datasetId: id, source: this.#sources.get(id)!, sql,
+        executedAt: new Date().toISOString(), result: structuredClone(result) });
+      // Keep the latest 32 query snapshots per connection, including after dataset disposal.
+      if (this.#queries.size > 32) this.#queries.delete(this.#queries.keys().next().value!);
+      return { ...result, queryId };
+    });
   }
 
   semantic(id: string, definition?: SemanticDefinition): Promise<SemanticDefinition> {
@@ -89,10 +103,17 @@ export class Runtime {
     return this.#run(() => this.#execute(['viz', '--spec', '-', '--output', outputPath(output)], vizResult, JSON.stringify(spec)));
   }
 
+  artifact(input: ArtifactInput) {
+    return this.#run(() => createArtifact(input, this.#queries, (spec, output) => this.#execute(
+      ['viz', '--spec', '-', '--output', outputPath(output)], vizResult, JSON.stringify(spec),
+    )));
+  }
+
   dispose(id: string) {
     return this.#session(id, async () => {
       const result = await this.#execute(['dispose', id], disposeResult);
       this.#sessions.delete(id);
+      this.#sources.delete(id);
       return result;
     });
   }
@@ -107,12 +128,14 @@ export class Runtime {
         try {
           await this.#execute(['dispose', id], disposeResult);
           this.#sessions.delete(id);
+          this.#sources.delete(id);
           report.disposed.push(id);
         } catch (error) {
           report.errors.push({ datasetId: id, message: error instanceof Error ? error.message : String(error) });
         }
       }
       report.retained = [...this.#sessions];
+      this.#queries.clear();
       return report;
     });
     return this.#cleanup;

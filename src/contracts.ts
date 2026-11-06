@@ -23,6 +23,7 @@ export const disposeResult = z.object({ datasetId: z.string(), disposed: z.liter
 export type SourceResult = z.infer<typeof sourceResult>;
 export type SchemaResult = z.infer<typeof schemaResult>;
 export type QueryResult = z.infer<typeof queryResult>;
+export type ExecutedQueryResult = QueryResult & { queryId: string };
 export type SemanticDefinition = z.infer<typeof semanticResult>;
 export interface ChartSpec { chartType: string; config: Record<string, unknown> }
 export interface CleanupReport {

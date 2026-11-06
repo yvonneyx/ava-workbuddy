@@ -117,6 +117,14 @@
 
 **你的问题 → WorkBuddy 规划分析 → AVA 本地计算 → 核对结果 → 交付结论与图表**
 
+### 单文件分析报告（当前源码新增，尚未发布）
+
+新增 `ava_artifact`，把多轮问题、结论、关键指标、交互图表、结果表、执行 SQL 和口径说明汇总成一个 HTML。独立固定模板位于 [`templates/artifact.html`](templates/artifact.html)，采用紧凑的黑白灰报告样式；图表使用 GPT-Vis 默认主题，不覆盖其配色。每份报告仅替换模板中一个 JSON 数据槽；标题、章节、表头、数据行和图表均由字段绑定，业务内容不写入模板。SQL 支持离线语法高亮、折叠和原文复制，配套保存证据 JSON，支持浏览器打印。
+
+每节引用 `ava_query` 返回的 `queryId`，工具从实际执行记录取数据和 SQL。最近 32 次查询在同一 MCP 连接内保留；追问时传入完整章节，用新文件名生成新版报告。正文、表格和 SQL 可离线查看；交互图表需联网加载 GPT-Vis。分享 HTML 也会分享其中内嵌的查询结果。
+
+构建后运行 `node lib/cli.js demo /绝对路径/新目录`，即可完成总体、产品贡献、回落追问、增量核对四轮查询，生成完整 `artifact.html`、模板实际使用的 `artifact.json`，以及仅替换字段的一节报告 `artifact-products.html`。`ava_artifact` 自动保存同名 JSON，两份文件均拒绝覆盖；建议每次分析使用单独目录。两份 HTML 去掉 JSON 数据槽后与固定模板逐字节一致。本地开发时按下方说明把 MCP 指向本仓库的 `lib/cli.js`；已安装的 v0.2.1 Release 不会自动获得这个新工具。参数见 [artifact 使用说明](skills/ava/references/tools.md#analysis-artifact)。
+
 本集成通过本地 stdio MCP 调用固定版本的 `@antv/ava@4.0.0` CLI。AVA 作为原样依赖使用；本仓库负责 WorkBuddy 的接入、分析指导、示例和分发。
 
 - **计算位置**：数据在本地 AVA 进程中计算，查询结果返回 WorkBuddy 参与推理，仍适用其模型服务的数据处理和计费规则。
@@ -124,7 +132,7 @@
 - **网络需求**：安装需要 GitHub / npm；Excel 首次读取可能下载 DuckDB 的 `excel` 扩展；图表 HTML 需要联网加载 GPT-Vis。
 
 <details>
-<summary>查看 8 个 MCP 工具</summary>
+<summary>查看 MCP 工具（当前源码 9 个，已发布 v0.2.1 为 8 个）</summary>
 
 | 工具 | 作用 |
 | --- | --- |
@@ -132,9 +140,10 @@
 | `ava_demo` | 运行示例，核对总额与分项，保存产物并释放示例会话 |
 | `ava_source` | 加载用户提供的本地 CSV / XLSX |
 | `ava_schema` | 查看真实表、字段、查询语言及规则 |
-| `ava_query` | 执行只读 SQL，返回结果及截断状态 |
+| `ava_query` | 执行只读 SQL，返回结果、截断状态和查询证据编号 |
 | `ava_semantic` | 读取或完整替换当前会话的业务定义 |
 | `ava_viz` | 将已核实的数据渲染为新 HTML 文件 |
+| `ava_artifact` | 将多个问题、结论、图表、结果表与 SQL 汇总为一个 HTML（尚未发布） |
 | `ava_dispose` | 释放当前连接创建的空闲会话 |
 
 </details>
