@@ -1,6 +1,7 @@
 AVA for WorkBuddy 宣传图
 
 成品：ava-workbuddy-floating.png、ava-workbuddy-full.png，均为 2400 × 1350。
+悬浮版构图：完整 WorkBuddy 界面位于后层，右侧前景为报告截取窗口，展示指标卡、收入趋势、新老客户贡献。
 界面来源：用户提供的 WorkBuddy 实机截图与零售收入增长质量报告长截图。
 处理方式：原始截图裁切、等比缩放、圆角与阴影排版；界面内容未经生成模型重绘。
 背景来源：内置 imagegen 工具生成，参考 AVA Site 的天蓝渐变和柔和云层。
