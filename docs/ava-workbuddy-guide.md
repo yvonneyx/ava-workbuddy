@@ -16,9 +16,9 @@ AVA 4.0 是 AntV 开源的数据分析与可视化框架。你可以类比 [Pand
 
 👉 **[一键复制「AVA 数据分析师」][expert-share]**
 
-**复制专家 → 上传 CSV / Excel → 描述你想了解的问题。**
+**复制专家 → 按提示连接 AVA → 上传 CSV / Excel，描述你想了解的问题。**
 
-*首次使用请按客户端提示完成准备。当前支持 macOS / Linux，需 Node.js 22.13+，并能访问 GitHub 和 npm；数据库、飞书需另行授权。[安装与数据说明](../README.md)。*
+*当前支持 macOS / Linux，需 Node.js 22.13+，并能访问 GitHub 和 npm；数据库、飞书需另行授权。[安装与数据说明](../README.md)。*
 
 [expert-share]: https://www.workbuddy.ai/work/launch/?sharecode=nm3SFE1xYGtxz8Cm7tWsV-c9oGpYLYAs6QQshRmf6sMqxhFWsHRFy6RIX8lMWx10&expertname=AVA+%E6%95%B0%E6%8D%AE%E5%88%86%E6%9E%90%E5%B8%88&buddy_type=workbuddy-ai
 [uci]: https://archive.ics.uci.edu/dataset/352/online+retail
