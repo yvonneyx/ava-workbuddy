@@ -1,0 +1,11 @@
+AVA for WorkBuddy 宣传图
+
+成品：ava-workbuddy-floating.png、ava-workbuddy-full.png，均为 2400 × 1350。
+界面来源：用户提供的 WorkBuddy 实机截图与零售收入增长质量报告长截图。
+处理方式：原始截图裁切、等比缩放、圆角与阴影排版；界面内容未经生成模型重绘。
+背景来源：内置 imagegen 工具生成，参考 AVA Site 的天蓝渐变和柔和云层。
+清晰度说明：原始界面截图为 1280 × 721，报告长截图为 526 × 1280。
+
+实际背景生成提示词：
+
+Use case: ads-marketing. Asset type: BACKGROUND ONLY for a 16:9 landscape software product screenshot promotional image. Primary request: a pristine airy pale sky blue gradient background matching the AVA website visual style: #89ccf8 at the top fading through #b4e4fb to #e8f7fe then near white at bottom. Very soft white cloud wisps enter from far left and far right edges, translucent, gently blurred, quiet and restrained. Large central 88% of image must be clean open empty gradient to accommodate crisp real software screenshots that will be composited separately. Colors clean icy blue and white, calm modern technology feeling, subtle dimensional soft daylight, no horizon line, no objects, no texture grain, no windows, no interfaces, no panels, no logos, no lettering, no watermark. Output wide 16:9 composition, highest quality.
