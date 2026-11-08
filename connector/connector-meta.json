@@ -5,7 +5,7 @@
   "description": "Analyze local files, databases and Feishu/Lark Bitable with AVA. Explore data, verify metrics, and create interactive charts and traceable analysis reports.",
   "description_zh": "分析本地文件、数据库和飞书多维表格，探索数据、核对指标，生成交互图表和可追溯的分析报告。",
   "description_en": "Analyze local files, databases and Feishu/Lark Bitable with AVA. Explore data, verify metrics, and create interactive charts and traceable analysis reports.",
-  "source": "yvonneyx-ava",
+  "source": "ava-data-analysis",
   "type": "mcp",
   "version": "1.0.1",
   "minWorkbuddyVersion": "5.0.0",

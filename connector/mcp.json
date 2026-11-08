@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "yvonneyx-ava": {
+    "ava-data-analysis": {
       "type": "stdio",
       "command": "npx",
       "args": [
