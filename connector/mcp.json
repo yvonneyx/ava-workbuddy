@@ -14,8 +14,8 @@
       "x-workbuddy": {
         "displayName": { "zh": "AVA 本地分析工具", "en": "AVA Local Analysis" },
         "description": {
-          "zh": "社区接入；本地计算，数据库和飞书需用户授权。暂不支持 HTTP 文件与 SSH 隧道。",
-          "en": "Community integration for local analysis. Database and Feishu access require user authorization. HTTP file sources and SSH tunnels are disabled."
+          "zh": "分析本地文件、数据库和飞书多维表格，探索数据、核对指标，生成交互图表和可追溯的分析报告。",
+          "en": "Analyze local files, databases and Feishu/Lark Bitable with AVA. Explore data, verify metrics, and create interactive charts and traceable analysis reports."
         },
         "icon": "./icon.svg",
         "auth": { "type": "none" }
