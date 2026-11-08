@@ -22,13 +22,14 @@ export const sourceConfig = z
     options: z
       .record(z.string(), z.unknown())
       .describe(
-        'Native AVA options: file types use path (absolute local path or HTTP(S), ' +
-          'SQLite local only), optional headers; csv-file/json-file accept nested options, ' +
+        'Supported AVA options: file types require an absolute local path. ' +
+          'HTTP(S) file sources and built-in SSH tunnels are temporarily disabled. ' +
+          'csv-file/json-file accept nested options, ' +
           'excel accepts sheets. csv: {csv, options?}; json: {data: object[], options?}; ' +
-          'text: {text}. mysql/postgresql: {host,database,port?,user?,password?,ssh?}, ' +
+          'text: {text}. mysql/postgresql: {host,database,port?,user?,password?}, ' +
           'postgresql also accepts schema. mongodb: {database,connection?} or host/port/user/password. ' +
           'clickhouse: {url or host,database,username?,password?,...native client options}; ' +
-          'supabase: {accessToken,projectRef}; feishu-bitable: {url} or {appToken,tableId}, ' +
+          'supabase: {accessToken,projectRef}; feishu-bitable: {official HTTPS url} or {appToken,tableId}, ' +
           'with optional appId/appSecret (otherwise resolved by AVA).',
       ),
   })

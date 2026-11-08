@@ -14,6 +14,9 @@ export async function validate() {
   const connector = await json('connector/connector-meta.json');
   const mcp = await json('connector/mcp.json');
   const plugin = await json('expert/.codebuddy-plugin/plugin.json');
+  const lock = await json('npm-shrinkwrap.json');
+  assert.equal(lock.version, metadata.version);
+  assert.equal(lock.packages[''].version, metadata.version);
 
   // -----------------------------------------------------------------------------
   // 连接器与 MCP 安装配置
@@ -40,17 +43,35 @@ export async function validate() {
     ),
   );
   assert.deepEqual(config.runtime, { type: 'node', version: '>=22.13.0 <23' });
+  assert.equal(config['x-workbuddy'].auth.type, 'none');
+  for (const field of ['displayName', 'description']) {
+    for (const language of ['zh', 'en']) {
+      assert(config['x-workbuddy'][field][language]?.trim(), `Missing MCP ${field}.${language}`);
+    }
+  }
 
   // -----------------------------------------------------------------------------
   // 专家配置与 Agent 声明
   // -----------------------------------------------------------------------------
 
   assert.equal(plugin.version, metadata.version);
+  assert.match(plugin.name, /^[a-z]+(?:-[a-z]+)*$/);
+  assert(plugin.description?.trim() && plugin.author?.name?.trim() && plugin.author?.email?.trim());
   assert.equal(plugin.name, plugin.plugin);
   assert.equal(plugin.expertType, 'agent');
   assert.equal(plugin.categoryId, '04-DataAI');
   assert.equal(plugin.tags.length, 3);
   assert.equal(plugin.quickPrompts.length, 3);
+  for (const localized of [
+    plugin.displayName,
+    plugin.profession,
+    plugin.displayDescription,
+    plugin.defaultInitPrompt,
+    ...plugin.tags,
+    ...plugin.quickPrompts,
+  ]) {
+    for (const language of ['zh', 'en']) assert(localized[language]?.trim(), `Missing ${language}`);
+  }
   assert.deepEqual(plugin.defaultInitPrompt, plugin.quickPrompts[0]);
   assert(
     [...plugin.displayDescription.zh].length >= 40 &&
@@ -62,6 +83,7 @@ export async function validate() {
     const source = await readFile(resolve(root, 'expert', agent), 'utf8');
     const frontmatter = parse(source.split('---')[1]);
     assert.equal(frontmatter.name, plugin.agentName);
+    assert.equal(agent, `./agents/${frontmatter.name}.md`);
     assert.deepEqual(frontmatter.displayName, plugin.displayName);
     assert.deepEqual(frontmatter.profession, plugin.profession);
     assert(!('skills' in frontmatter), 'The expert uses MCP tools without a separate Skill.');
@@ -77,6 +99,7 @@ export async function validate() {
 
   await access(join(root, 'public/artifact.html'));
   await access(join(root, 'public/icon.svg'));
+  await access(join(root, 'public/connector-icon.svg'));
   const avatar = await readFile(join(root, 'public', plugin.avatar));
   assert.equal(avatar.subarray(1, 4).toString(), 'PNG');
   assert.equal(avatar.readUInt32BE(16), 512);

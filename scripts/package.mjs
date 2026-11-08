@@ -49,24 +49,16 @@ try {
     await mkdir(destination);
     if (kind === 'connector') {
       await cp(join(root, 'connector'), destination, { recursive: true });
-      await cp(join(root, 'public/icon.svg'), join(destination, 'icon.svg'));
     }
     if (kind === 'expert') {
       await cp(join(root, 'expert'), destination, { recursive: true });
       await cp(join(root, 'public/avatars'), join(destination, 'avatars'), { recursive: true });
       await cp(join(root, 'connector/mcp.json'), join(destination, '.mcp.json'));
     }
-    for (const file of ['LICENSE', 'NOTICE']) {
+    await cp(join(root, 'public/connector-icon.svg'), join(destination, 'icon.svg'));
+    for (const file of ['LICENSE', 'NOTICE', 'README.md']) {
       await cp(join(root, file), join(destination, file));
     }
-    await writeFile(
-      join(destination, 'README.md'),
-      `# AVA Data Analyst ${kind} ${metadata.version}\n\n` +
-        `${metadata.homepage}\n\n` +
-        'Requires macOS/Linux and WorkBuddy 5.0.0+.\n\n' +
-        'This is a community integration; no additional model key is required. ' +
-        'See NOTICE for upstream attribution.\n',
-    );
     const archive = join(dist, `ava-workbuddy-${kind}-${metadata.version}.zip`);
     // Explicit directory input includes the dotfiles required by WorkBuddy expert packages.
     execFileSync('zip', ['-q', '-r', '-X', archive, directory], { cwd: staging });

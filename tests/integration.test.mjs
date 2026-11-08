@@ -51,7 +51,7 @@ async function call(client, name, args = {}) {
 }
 
 // -----------------------------------------------------------------------------
-// 新增数据源：真实文件、内联数据、原生配置与远程下载
+// 数据源：真实文件、内联数据与禁用入口
 // -----------------------------------------------------------------------------
 
 test(
@@ -101,7 +101,7 @@ test(
 );
 
 test(
-  'MCP loads JSON, Parquet, SQLite, inline CSV/JSON and authenticated HTTP sources',
+  'MCP loads local JSON, Parquet, SQLite, Excel and inline CSV/JSON sources',
   { timeout: 180000 },
   async () => {
     const directory = await mkdtemp(join(tmpdir(), 'ava-all-sources-'));
@@ -111,23 +111,6 @@ test(
     const unrelated = join(directory, 'unrelated-private.txt');
     const parquet = join(directory, 'data.parquet');
     const sqlite = join(directory, 'data.sqlite3');
-    const remote = createServer(async (request, response) => {
-      if (request.headers.authorization !== 'Bearer test-secret') {
-        response.writeHead(401).end();
-        return;
-      }
-      const files = {
-        '/data': json,
-        '/data.parquet': parquet,
-        '/data.xlsx': join(root, 'tests/fixtures/销售 数据.xlsx'),
-      };
-      const file = files[new URL(request.url, 'http://localhost').pathname];
-      if (!file) {
-        response.writeHead(404).end();
-        return;
-      }
-      response.end(await readFile(file));
-    });
     try {
       await writeFile(unrelated, 'DUMMY_PRIVATE_CONTENT');
       await writeFile(json, JSON.stringify([{ value: 1 }, { value: 2 }]));
@@ -150,9 +133,6 @@ test(
         duckdb.closeSync();
         instance.closeSync();
       }
-      remote.listen(0, '127.0.0.1');
-      await once(remote, 'listening');
-      const origin = `http://127.0.0.1:${remote.address().port}`;
       const config = join(directory, 'source.json');
       await writeFile(
         config,
@@ -169,24 +149,6 @@ test(
         { config: { type: 'csv', options: { csv: 'value\n1\n2' } } },
         { config: { type: 'csv-file', options: { path: csv, options: { delim: ';' } } } },
         { path: `@${config}` },
-        {
-          config: {
-            type: 'json-file',
-            options: {
-              path: `${origin}/data?token=signed-secret`,
-              headers: { Authorization: 'Bearer test-secret' },
-            },
-          },
-        },
-        {
-          config: {
-            type: 'parquet',
-            options: {
-              path: `${origin}/data.parquet`,
-              headers: { Authorization: 'Bearer test-secret' },
-            },
-          },
-        },
       ];
       for (const input of inputs) {
         const { datasetId } = await call(client, 'ava_source', input);
@@ -215,17 +177,6 @@ test(
           });
           assert.equal(denied.isError, true, 'Query must not read an unrelated local file');
           assert.match(denied.content[0].text, /disabled|permission|not allowed/i);
-          if (input.config?.type === 'json-file') {
-            const report = await call(client, 'ava_artifact', {
-              output: join(directory, 'remote.html'),
-              title: 'Remote',
-              summary: 'Total is 3',
-              sections: [{ question: 'Total?', conclusion: '3', queryId: result.queryId }],
-            });
-            const evidence = await readFile(report.dataOutput, 'utf8');
-            assert(!evidence.includes(origin) && !evidence.includes('secret'));
-            assert.equal(JSON.parse(evidence).queries[0].source, 'json-file');
-          }
         } finally {
           await call(client, 'ava_dispose', { datasetId });
           if (workspace) await assert.rejects(access(workspace), { code: 'ENOENT' });
@@ -235,8 +186,7 @@ test(
         config: {
           type: 'excel',
           options: {
-            path: `${origin}/data.xlsx`,
-            headers: { Authorization: 'Bearer test-secret' },
+            path: join(root, 'tests/fixtures/销售 数据.xlsx'),
           },
         },
       });
@@ -250,28 +200,60 @@ test(
       assert.equal(excelDenied.isError, true);
       assert.match(excelDenied.content[0].text, /disabled|permission|not allowed/i);
       await call(client, 'ava_dispose', excel);
-      const failed = await client.callTool({
-        name: 'ava_source',
-        arguments: {
-          config: {
-            type: 'json-file',
-            options: {
-              path: `${origin}/missing?token=private-token`,
-              headers: { Authorization: 'Bearer test-secret' },
-            },
-          },
-        },
-      });
-      assert.equal(failed.isError, true);
-      assert(failed.content[0].text.includes('404'));
-      assert(!failed.content[0].text.includes('private-token'));
     } finally {
       await client.close();
-      await new Promise((resolve) => remote.close(resolve));
       await rm(directory, { recursive: true, force: true });
     }
   },
 );
+
+test('MCP blocks remote files and SSH configs without contacting their target', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'ava-disabled-sources-'));
+  const connection = await connect();
+  let connections = 0;
+  const target = createServer((request, response) => response.end('value\n1\n'));
+  target.on('connection', () => connections++);
+  target.listen(0, '127.0.0.1');
+  await once(target, 'listening');
+  const url = `http://127.0.0.1:${target.address().port}/data.csv?token=DUMMY-TOKEN`;
+  const blocked = async (args) => {
+    const response = await connection.client.callTool({ name: 'ava_source', arguments: args });
+    assert.equal(response.isError, true);
+    const message = response.content.map((item) => item.text).join('\n');
+    assert.match(message, /temporarily disabled/);
+    assert(!message.includes('DUMMY-TOKEN') && !message.includes('DUMMY-KEY'));
+  };
+  try {
+    await blocked({ path: url });
+    for (const type of ['csv-file', 'json-file', 'parquet', 'excel', 'sqlite']) {
+      await blocked({ path: url, type });
+      const config = { type, options: { path: url, headers: { 'X-API-Key': 'DUMMY-KEY' } } };
+      await blocked({ config });
+      const path = join(directory, `${type}.json`);
+      await writeFile(path, JSON.stringify(config));
+      await blocked({ path: `@${path}` });
+    }
+    for (const type of ['mysql', 'postgresql']) {
+      const config = {
+        type,
+        options: {
+          host: '127.0.0.1',
+          database: 'sales',
+          ssh: { host: '127.0.0.1', port: target.address().port, user: 'reader' },
+        },
+      };
+      await blocked({ config });
+      const path = join(directory, `${type}.json`);
+      await writeFile(path, JSON.stringify(config));
+      await blocked({ path: `@${path}` });
+    }
+    assert.equal(connections, 0);
+  } finally {
+    await connection.client.close();
+    await new Promise((resolve) => target.close(resolve));
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 
 // -----------------------------------------------------------------------------
 // 完整链路：文件、查询、图表、报告与重启

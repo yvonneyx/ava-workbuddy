@@ -1,7 +1,7 @@
 {
   "name": "ava-data-analyst",
-  "version": "1.0.0",
-  "description": "Explore files, databases, inline data and Feishu/Lark Bitable with AVA. Answer questions with verified results, visualizations and traceable reports.",
+  "version": "1.0.1",
+  "description": "Analyze local files, direct database connections and Feishu/Lark Bitable. Verify metrics and deliver traceable reports with AVA.",
   "author": {
     "name": "yvonneyx",
     "email": "zhuyuxin0627@gmail.com"
@@ -10,16 +10,16 @@
   "expertType": "agent",
   "agentName": "ava-data-analyst",
   "displayName": {
-    "zh": "AVA 数据分析师",
-    "en": "AVA Data Analyst"
+    "zh": "AVA 数据分析与报告",
+    "en": "AVA Data Analysis and Reports"
   },
   "profession": {
     "zh": "AVA 数据分析师",
     "en": "Data Analyst"
   },
   "displayDescription": {
-    "zh": "分析文件、数据库、飞书表格等数据源，探索数据特征、回答业务问题，交付结论、图表和可追溯的报告。",
-    "en": "Explore files, databases, inline data and Feishu/Lark Bitable. Answer business questions and deliver findings, result tables, interactive charts and traceable reports."
+    "zh": "分析本地文件、数据库和飞书表格，核对指标与差异，生成含结论、交互图表和查询依据的报告。",
+    "en": "Analyze local files, direct database connections and Feishu/Lark Bitable. Verify metrics and differences, then deliver findings, interactive charts and reports with query evidence."
   },
   "avatar": "avatars/expert.png",
   "categoryId": "04-DataAI",

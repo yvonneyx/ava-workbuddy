@@ -10,8 +10,11 @@ import {
 } from './contracts.js';
 
 // -----------------------------------------------------------------------------
-// 文件、URL 与原生配置统一通过 stdin 加载
+// 本地文件、飞书链接与原生配置统一通过 stdin 加载
 // -----------------------------------------------------------------------------
+
+const remoteFileDisabled =
+  'HTTP(S) file sources are temporarily disabled. Supply an authorized local file instead.';
 
 export async function prepareSource(input: string | SourceConfig, type?: FileSourceType) {
   let config: SourceConfig;
@@ -41,7 +44,7 @@ export async function prepareSource(input: string | SourceConfig, type?: FileSou
         }
         inferred = 'feishu-bitable';
       } else {
-        inferred = fileSourceTypes[extname(url.pathname).toLowerCase()];
+        throw new Error(remoteFileDisabled);
       }
     } else {
       await sourcePath(path, type);
@@ -62,6 +65,18 @@ export async function prepareSource(input: string | SourceConfig, type?: FileSou
     config = sourceConfig.parse(input);
   }
 
+  // 上游尚未校验 SSH 主机密钥，修复前不向其传递隧道配置。
+  if (Object.hasOwn(config.options, 'ssh')) {
+    throw new Error(
+      'Built-in SSH tunnels are temporarily disabled. Use a direct database connection.',
+    );
+  }
+  if (config.type === 'feishu-bitable' && typeof config.options.url === 'string') {
+    const url = new URL(config.options.url);
+    if (url.protocol !== 'https:' || !/(^|\.)(feishu\.cn|larksuite\.com)$/.test(url.hostname)) {
+      throw new Error('Feishu/Lark sources require an official HTTPS base or wiki URL.');
+    }
+  }
   let label: string = config.type;
   if (fileSourceType.safeParse(config.type).success) {
     const path = config.options.path;
@@ -69,14 +84,11 @@ export async function prepareSource(input: string | SourceConfig, type?: FileSou
       throw new Error('File source options require a non-empty path.');
     }
     if (/^https?:\/\//i.test(path)) {
-      if (config.type === 'sqlite') {
-        throw new Error('SQLite requires an absolute local file path.');
-      }
-      config.options.path = new URL(path).toString();
-    } else {
-      config.options.path = await sourcePath(path, config.type as FileSourceType);
-      label = basename(config.options.path as string);
+      // 禁止原生配置和 @配置文件绕过远程文件入口的限制。
+      throw new Error(remoteFileDisabled);
     }
+    config.options.path = await sourcePath(path, config.type as FileSourceType);
+    label = basename(config.options.path as string);
   }
   // URL、连接串与完整配置可能含凭据，报告仅保存类型或本地文件名。
   return { config, label };
@@ -91,11 +103,7 @@ export async function isolateSource(config: SourceConfig) {
   const directory = await mkdtemp(join(tmpdir(), 'aw-'));
   try {
     const path = config.options.path;
-    if (
-      fileSourceType.safeParse(config.type).success &&
-      typeof path === 'string' &&
-      !/^https?:\/\//i.test(path)
-    ) {
+    if (fileSourceType.safeParse(config.type).success && typeof path === 'string') {
       const staged = join(directory, basename(path));
       if (config.type === 'sqlite') {
         // 一致性快照包含 WAL 中已提交的数据，不能只复制 SQLite 主文件。

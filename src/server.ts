@@ -94,12 +94,16 @@ export function createServer(runtime = new Runtime()) {
 
   register(
     'ava_source',
-    'Load any AVA source: CSV/JSON/Parquet/Excel/SQLite files, HTTP(S) files, inline ' +
+    'Load authorized local CSV/JSON/Parquet/Excel/SQLite files, inline ' +
       'CSV/JSON/text, MySQL/PostgreSQL/MongoDB/ClickHouse/Supabase, or Feishu/Lark Bitable. ' +
+      'HTTP(S) file sources and built-in SSH tunnels are temporarily disabled; do not bypass ' +
+      'these limits with another tool. Database connections must be direct. ' +
       'Supply exactly one of path or config. AVA selects ClickHouse/Supabase engines ' +
       'for those types and DuckDB otherwise. Use authorized read-only credentials; ' +
       'prefer @config files or configured environment credentials to sharing secrets in chat. ' +
-      'Text extraction requires OPENAI_API_KEY and sends text to the configured model. ' +
+      'Explain the necessary data and recipients before loading: query results return to ' +
+      'the WorkBuddy model service. Text extraction additionally requires OPENAI_API_KEY ' +
+      'and sends text to the configured model; confirm that recipient is authorized first. ' +
       'Feishu credentials must be configured before this non-interactive call; ' +
       'base/wiki URLs load the whole table, ignoring view filters. Returns datasetId; ' +
       'follow with ava_schema. Sessions expire after 30 idle minutes; reload after ' +
@@ -111,13 +115,13 @@ export function createServer(runtime = new Runtime()) {
           .min(1)
           .optional()
           .describe(
-            'Absolute local file path, HTTP(S) file URL, Feishu/Lark base/wiki URL, or ' +
+            'Absolute local file path, official HTTPS Feishu/Lark base/wiki URL, or ' +
               '@/absolute/path/source.json containing native AVA config. A plain .json is data.',
           ),
         type: fileSourceType
           .optional()
           .describe(
-            'File format override for path, e.g. extensionless URLs/files; incompatible with config or @file',
+            'File format override for a local path, e.g. extensionless files; incompatible with config or @file',
           ),
         config: sourceConfig.optional().describe('Native AVA {type,options}; use instead of path'),
       })
@@ -201,7 +205,8 @@ export function createServer(runtime = new Runtime()) {
       'chartType and config, not syntax. Absolute output path must be new; parent ' +
       'directory must exist. HTML embeds its data and is saved with owner-only permissions. ' +
       'HTML needs network for GPT-Vis; generation does not ' +
-      'prove visual rendering. Standalone config must include the verified data. ' +
+      'prove visual rendering. Disclose that preview loads third-party scripts from unpkg.com, ' +
+      'which can access the embedded chart data. Standalone config must include the verified data. ' +
       'Use the native fields defined for chartType, e.g. category/value for column, ' +
       'time/value for line; numeric values must be JSON numbers. Arbitrary query column ' +
       'names are not inferred. For reports, use ava_artifact with chartFields instead. ' +
@@ -228,7 +233,8 @@ export function createServer(runtime = new Runtime()) {
       'queryIds from this connection, including disposed datasets. Truncated ' +
       'results are not plotted; chartErrors preserves failures while tables and ' +
       'SQL remain available. Return paths are output and dataOutput. Sharing the ' +
-      'HTML shares its query results. Bind query columns explicitly with chartFields ' +
+      'HTML shares its query results. Interactive charts load third-party GPT-Vis scripts ' +
+      'from unpkg.com; explain this dependency before creating charts. Bind query columns explicitly with chartFields ' +
       '(native field -> query column), or return native column aliases in SQL. ' +
       'This does not independently verify assistant ' +
       'conclusions or browser rendering. Keep each question with its queryId; retain ' +

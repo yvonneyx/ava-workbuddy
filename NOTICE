@@ -26,5 +26,8 @@ SOFTWARE.
 
 Logo supplied by the repository maintainer (AntV SVG):
 https://mdn.alipayobjects.com/huamei_qa8qxu/afts/img/A*FBLnQIAzx6cAAAAAQDAAAAgAemJ7AQ/original
-public/icon.svg preserves the supplied SVG. public/avatars/expert.png is a
-proportional rendering on a transparent 512x512 canvas for WorkBuddy.
+public/icon.svg preserves the supplied SVG for the report branding.
+
+public/avatars/expert.png is an original AI-generated data analyst illustration
+created for this integration with OpenAI ImageGen, resized to 512x512 for the
+WorkBuddy expert avatar. It does not reuse the AntV logo.

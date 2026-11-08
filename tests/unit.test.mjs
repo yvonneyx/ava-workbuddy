@@ -117,13 +117,13 @@ test('infer all AVA file formats and allow explicit formats for extensionless fi
     );
     await assert.rejects(
       prepareSource({ type: 'sqlite', options: { path: 'https://example.com/a.db' } }),
-      /SQLite/,
+      /temporarily disabled/,
     );
     await assert.rejects(prepareSource({ type: 'json-file', options: {} }), /path/);
-    await assert.rejects(prepareSource('https://example.com/data'), /source type/);
-    assert.equal(
-      (await prepareSource('https://example.com/data', 'json-file')).config.type,
-      'json-file',
+    await assert.rejects(prepareSource('https://example.com/data'), /temporarily disabled/);
+    await assert.rejects(
+      prepareSource('https://example.com/data', 'json-file'),
+      /temporarily disabled/,
     );
     for (const host of ['my.feishu.cn', 'my.larksuite.com']) {
       for (const kind of ['base', 'wiki']) {
@@ -141,7 +141,7 @@ test('infer all AVA file formats and allow explicit formats for extensionless fi
   }
 });
 
-test('all 14 native source types preserve options and send credentials only via stdin', async (t) => {
+test('supported source configs preserve options and send credentials only via stdin', async (t) => {
   const directory = await mkdtemp(join(tmpdir(), 'ava-sqlite-config-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const sqlite = join(directory, 'data.sqlite');
@@ -149,23 +149,25 @@ test('all 14 native source types preserve options and send credentials only via 
   const database = new DatabaseSync(sqlite);
   database.exec('CREATE TABLE data (value INTEGER); INSERT INTO data VALUES (1)');
   database.close();
+  for (const name of ['data.csv', 'data.json', 'data.parquet', 'data.xlsx']) {
+    await writeFile(join(directory, name), 'fixture');
+  }
   const configs = [
     {
       type: 'csv-file',
-      options: { path: 'https://example.com/data.csv', options: { delim: ';' } },
+      options: { path: join(directory, 'data.csv'), options: { delim: ';' } },
     },
     {
       type: 'json-file',
       options: {
-        path: 'https://example.com/data.json',
-        headers: { Authorization: 'Bearer secret' },
+        path: join(directory, 'data.json'),
       },
     },
-    { type: 'parquet', options: { path: 'https://example.com/data.parquet' } },
+    { type: 'parquet', options: { path: join(directory, 'data.parquet') } },
     {
       type: 'excel',
       options: {
-        path: 'https://example.com/a.xlsx',
+        path: join(directory, 'data.xlsx'),
         sheets: [{ sheet: 'Sheet1', range: 'A1:B3' }],
       },
     },
@@ -179,7 +181,6 @@ test('all 14 native source types preserve options and send credentials only via 
         host: 'localhost',
         database: 'sales',
         password: '$(secret)',
-        ssh: { host: 'jump', user: 'reader' },
       },
     },
     { type: 'postgresql', options: { host: 'localhost', database: 'sales', schema: 'public' } },
@@ -215,14 +216,55 @@ test('all 14 native source types preserve options and send credentials only via 
       assert.equal(sent.type, config.type);
       assert.deepEqual(sent.options, {
         ...config.options,
-        ...(config.type === 'sqlite'
-          ? { path: join(runtime.calls[0].directory, basename(sqlite)) }
+        ...(['csv-file', 'json-file', 'parquet', 'excel', 'sqlite'].includes(config.type)
+          ? { path: join(runtime.calls[0].directory, basename(config.options.path)) }
           : {}),
       });
       assert.deepEqual(config, before);
     } finally {
       await runtime.close();
     }
+  }
+});
+
+test('remote files and SSH are rejected before AVA runs, including config files', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'ava-blocked-sources-'));
+  const runtime = new StubRuntime();
+  const configFile = join(directory, 'source.json');
+  try {
+    for (const type of ['csv-file', 'json-file', 'parquet', 'excel', 'sqlite']) {
+      const url = `https://reader:DUMMY-PASSWORD@example.com/data?token=DUMMY-TOKEN`;
+      const config = { type, options: { path: url, headers: { 'X-API-Key': 'DUMMY-KEY' } } };
+      await assert.rejects(runtime.source(url, type), /temporarily disabled/);
+      await assert.rejects(runtime.source(config), /temporarily disabled/);
+      await writeFile(configFile, JSON.stringify(config));
+      await assert.rejects(runtime.source(`@${configFile}`), /temporarily disabled/);
+    }
+    for (const type of ['mysql', 'postgresql']) {
+      const config = {
+        type,
+        options: { host: 'localhost', database: 'sales', ssh: { host: 'jump', user: 'reader' } },
+      };
+      await assert.rejects(runtime.source(config), /SSH tunnels are temporarily disabled/);
+      await writeFile(configFile, JSON.stringify(config));
+      await assert.rejects(
+        runtime.source(`@${configFile}`),
+        /SSH tunnels are temporarily disabled/,
+      );
+    }
+    for (const url of [
+      'http://my.feishu.cn/base/token',
+      'https://feishu.cn.example.com/base/token',
+    ]) {
+      await assert.rejects(
+        runtime.source({ type: 'feishu-bitable', options: { url } }),
+        /official HTTPS/,
+      );
+    }
+    assert.equal(runtime.calls.length, 0);
+  } finally {
+    await runtime.close();
+    await rm(directory, { recursive: true, force: true });
   }
 });
 
@@ -307,10 +349,11 @@ test('source errors redact connection credentials while preserving uncertain out
   };
   await assert.rejects(
     runtime.source({
-      type: 'csv-file',
+      type: 'clickhouse',
       options: {
-        path: url,
-        headers: { Authorization: 'Bearer header-secret' },
+        url,
+        database: 'sales',
+        http_headers: { Authorization: 'Bearer header-secret' },
       },
     }),
     (error) =>
@@ -391,13 +434,20 @@ test('MCP exposes native source configs, validates exclusive inputs and declares
       {},
       { path: file, config: { type: 'json', options: { data: [] } } },
       { config: { type: 'json', options: { data: [] } }, type: 'csv-file' },
+      { path: 'https://example.com/data', type: 'csv-file' },
+      {
+        config: {
+          type: 'postgresql',
+          options: { host: 'localhost', database: 'sales', ssh: { host: 'jump', user: 'reader' } },
+        },
+      },
     ]) {
       assert.equal((await client.callTool({ name: 'ava_source', arguments: args })).isError, true);
     }
     assert.equal(runtime.calls.length, 0);
     for (const args of [
       { path: file },
-      { path: 'https://example.com/data', type: 'csv-file' },
+      { path: file, type: 'csv-file' },
       { config: { type: 'postgresql', options: { host: 'localhost', database: 'sales' } } },
     ]) {
       assert(!(await client.callTool({ name: 'ava_source', arguments: args })).isError);

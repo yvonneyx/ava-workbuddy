@@ -10,23 +10,33 @@ import { root, metadata } from '../lib/metadata.js';
 // -----------------------------------------------------------------------------
 
 const archive = join(root, 'dist', `ava-workbuddy-${metadata.version}.tgz`);
+const expert = JSON.parse(
+  await readFile(join(root, 'expert/.codebuddy-plugin/plugin.json'), 'utf8'),
+);
 const files = execFileSync('tar', ['-tzf', archive], { encoding: 'utf8' }).trim().split('\n');
 assert(files.includes('package/lib/index.js') && files.includes('package/lib/index.d.ts'));
 assert(files.includes('package/public/artifact.html'));
 assert(files.includes('package/public/icon.svg'));
 assert(files.includes('package/npm-shrinkwrap.json'));
-assert(
-  !files.some((path) => /(?:CONTRIBUTING\.md|CHANGELOG\.md)$/.test(path)),
-);
+assert(!files.some((path) => /(?:CONTRIBUTING\.md|CHANGELOG\.md)$/.test(path)));
 assert(!files.some((path) => /(?:node_modules|\/(?:tests?|scripts|docs)\/|\.env)/.test(path)));
 assert(!files.some((path) => /\/(?:examples|templates|avatars|skills)\//.test(path)));
 
 // 分发路径可以不同，MCP 配置和资源必须与维护源逐字节一致。
 const copies = [
-  ['connector', 'ava-connector/icon.svg', 'public/icon.svg'],
-  ['expert', 'ava-data-analyst/avatars/expert.png', 'public/avatars/expert.png'],
+  ['connector', 'ava-connector/icon.svg', 'public/connector-icon.svg'],
+  ['expert', `ava-data-analyst/${expert.avatar}`, `public/${expert.avatar}`],
+  ['expert', 'ava-data-analyst/icon.svg', 'public/connector-icon.svg'],
+  ['expert', 'ava-data-analyst/README.md', 'README.md'],
+  ['connector', 'ava-connector/README.md', 'README.md'],
   ['connector', 'ava-connector/mcp.json', 'connector/mcp.json'],
   ['expert', 'ava-data-analyst/.mcp.json', 'connector/mcp.json'],
+  [
+    'expert',
+    'ava-data-analyst/.codebuddy-plugin/plugin.json',
+    'expert/.codebuddy-plugin/plugin.json',
+  ],
+  ['expert', 'ava-data-analyst/agents/ava-data-analyst.md', 'expert/agents/ava-data-analyst.md'],
 ];
 const archives = (await readdir(join(root, 'dist'))).filter((name) => /\.(tgz|zip)$/.test(name));
 assert.deepEqual(archives.sort(), [
@@ -90,7 +100,7 @@ const source = await runtime.source('/tmp/sales.csv');
 const sourceConfig: SourceConfig = { type: 'json', options: { data: [{ value: 1 }] } };
 const inline = await runtime.source(sourceConfig);
 const fileType: FileSourceType = 'json-file';
-await runtime.source('https://example.com/data', fileType);
+await runtime.source('/tmp/extensionless', fileType);
 await runtime.dispose(inline.datasetId);
 const result: QueryResult = await runtime.query(source.datasetId, 'SELECT 1');
 const rows: Record<string, unknown>[] = result.data;
@@ -186,6 +196,7 @@ console.log(JSON.stringify({
     { cwd: directory, env, encoding: 'utf8', timeout: 180000 },
   );
   const result = JSON.parse(imported);
+  assert.equal(result.integrationVersion, metadata.version);
   assert.equal(result.avaVersion, '4.0.0');
   assert.equal(result.computationVerified, true);
   assert.equal(result.htmlGenerated, true);
