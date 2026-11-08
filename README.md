@@ -13,9 +13,11 @@ WorkBuddy 理解问题并编写 SQL，AVA 执行计算和制图。结构化数�
 
 ### 一键复制专家
 
-通过[分享链接][expert-share]复制「AVA 数据分析师」，进入专家对话后按提示连接 AVA，上传 CSV / Excel 并描述分析目标。
+通过[分享链接][expert-share]复制「AVA 数据分析师」，进入专家对话后按提示连接 AVA，上传 CSV /
+Excel 并描述分析目标。
 
-专家的 MCP 依赖使用固定版本的 GitHub Release 运行包，通过 `npx` 下载并在用户本机启动，无需使用创建者电脑上的路径。首次连接需要安装受支持的 Node.js，并能访问 GitHub 和 npm。
+专家的 MCP 依赖使用固定版本的 GitHub Release 运行包，通过 `npx`
+下载并在用户本机启动，无需使用创建者电脑上的路径。首次连接需要安装受支持的 Node.js，并能访问 GitHub 和 npm。
 
 上手案例见[使用教程](docs/ava-workbuddy-guide.md)。数据库和飞书仍需接收方自行配置网络、权限与凭据。
 
@@ -58,7 +60,7 @@ node lib/cli.js check
 
 MCP 工具描述和输入 schema 提供分析规则、参数与图表配置。报告包含结论、结果表、SQL 和可选图表，数据来自实际查询。
 
-本地文件以私有副本分析，修改原文件后需重新加载；SQLite 快照包含已提交的 WAL 数据。会话闲置 30 分钟或连接重启后需重新加载；超时可能仍在计算，不要自动重试或释放。
+本地文件以私有副本分析，修改原文件后需重新加载；SQLite 快照包含已提交的 WAL 数据。会话闲置 30 分钟或连接重启后需重新加载；超时、断连或不完整响应可能仍在计算，不要自动重试或释放。数据库、飞书与文本源错误返回受控摘要，避免底层错误回显凭据；按提示检查配置、权限、网络和查询。
 
 ## 数据源
 
@@ -88,7 +90,8 @@ MCP 工具描述和输入 schema 提供分析规则、参数与图表配置。�
 - 数据源结构和查询结果会返回 WorkBuddy，适用其模型服务的数据处理规则。数据库和飞书按用户授权访问，不在本集成的运营后端存储。
 - `text` 会把原始文本发送到用户配置的模型服务，使用前需授权该接收方并配置
   `OPENAI_API_KEY`。第三方账号、订阅和模型费用按相应服务规则处理。
-- 输入副本与临时文件在正常释放会话后删除；超时或清理失败时保留，确认任务结束后可手动删除。最近 32 次查询证据在 MCP 连接关闭后清除，需保留时用
+- 输入副本与临时文件在正常释放会话后删除；超时或清理失败时保留，关闭结果的 `retainedDirectories`
+  提供保留路径，确认任务结束后可手动删除。最近 32 次查询证据在 MCP 连接关闭后清除，需保留时用
   `ava_artifact` 导出。
 - 图表和报告以 `600`
   权限保存，内嵌查询数据；用户可自行删除，向他人分享前需确认数据授权。交互图表从 unpkg.com 加载 GPT-Vis 脚本，脚本可访问图表数据；无图表的报告可离线查看正文、表格和 SQL。
@@ -139,4 +142,5 @@ CDN 地址，渲染器 URL 未锁定版本。
 
 本项目是独立的社区集成，采用 [MIT License](LICENSE)。上游来源和许可证见 [NOTICE](NOTICE)。
 
-[expert-share]: https://www.workbuddy.ai/work/launch/?sharecode=nm3SFE1xYGtxz8Cm7tWsV-c9oGpYLYAs6QQshRmf6sMqxhFWsHRFy6RIX8lMWx10&expertname=AVA+%E6%95%B0%E6%8D%AE%E5%88%86%E6%9E%90%E5%B8%88&buddy_type=workbuddy-ai
+[expert-share]:
+  https://www.workbuddy.ai/work/launch/?sharecode=nm3SFE1xYGtxz8Cm7tWsV-c9oGpYLYAs6QQshRmf6sMqxhFWsHRFy6RIX8lMWx10&expertname=AVA+%E6%95%B0%E6%8D%AE%E5%88%86%E6%9E%90%E5%B8%88&buddy_type=workbuddy-ai

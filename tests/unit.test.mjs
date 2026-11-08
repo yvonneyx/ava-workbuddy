@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import {
   access,
+  chmod,
   mkdir,
   mkdtemp,
   readFile,
@@ -345,7 +346,10 @@ test('source errors redact connection credentials while preserving uncertain out
   const runtime = new StubRuntime();
   const url = 'https://reader:password@example.com/data.csv?token=signed';
   runtime.command = async () => {
-    throw new AVACommandError(`Failed to fetch ${url}: Bearer header-secret password signed`, true);
+    throw new AVACommandError(
+      `Failed to fetch ${url}: Bearer header-secret password signed; fragment=header; encoded=header%2Dsecret`,
+      true,
+    );
   };
   await assert.rejects(
     runtime.source({
@@ -362,7 +366,9 @@ test('source errors redact connection credentials while preserving uncertain out
       !error.message.includes(url) &&
       !error.message.includes('header-secret') &&
       !error.message.includes('password') &&
-      !error.message.includes('signed'),
+      !error.message.includes('signed') &&
+      !error.message.includes('fragment=') &&
+      !error.message.includes('encoded='),
   );
   assert.deepEqual(runtime.calls[0].args, ['source', '-']);
 });
@@ -391,11 +397,14 @@ test('session operations and cleanup redact saved credentials after loading', as
     runtime.command = async () => {
       throw new Error('Connection failed: session-password Bearer session-token');
     };
-    const expected = 'Connection failed: [redacted] [redacted]';
+    const expected =
+      'AVA clickhouse operation failed. Upstream details were withheld to protect credentials. ' +
+      'Check the source configuration, permissions, network and query syntax.';
     await assert.rejects(operation(runtime), { message: expected });
     assert.deepEqual(await runtime.close(), {
       disposed: [],
       retained: [id],
+      retainedDirectories: { [id]: runtime.calls[0].directory },
       errors: [{ datasetId: id, message: expected }],
     });
   }
@@ -412,10 +421,16 @@ test('redacted session timeouts preserve uncertain state and block automatic reu
     (error) =>
       error instanceof AVACommandError &&
       error.uncertain &&
-      error.message === 'Timed out: [redacted]',
+      error.message.includes('outcome is uncertain') &&
+      !error.message.includes('timeout-password'),
   );
   await assert.rejects(runtime.dispose(id), /uncertain/);
-  assert.deepEqual(await runtime.close(), { disposed: [], retained: [id], errors: [] });
+  assert.deepEqual(await runtime.close(), {
+    disposed: [],
+    retained: [id],
+    retainedDirectories: { [id]: runtime.calls[0].directory },
+    errors: [],
+  });
 });
 
 test('MCP exposes native source configs, validates exclusive inputs and declares remote access', async () => {
@@ -509,7 +524,12 @@ test('do not retry or dispose uncertain sessions; report retention to the caller
   await assert.rejects(runtime.query(id, 'SELECT 3'), /timed out/);
   await assert.rejects(runtime.query(id, 'SELECT 3'), /uncertain/);
   await assert.rejects(runtime.dispose(id), /uncertain/);
-  assert.deepEqual(await runtime.close(), { disposed: [], retained: [id], errors: [] });
+  assert.deepEqual(await runtime.close(), {
+    disposed: [],
+    retained: [id],
+    retainedDirectories: { [id]: runtime.calls[0].directory },
+    errors: [],
+  });
   assert.equal(runtime.calls.length, 1);
 });
 
@@ -548,6 +568,7 @@ test('cleanup is idempotent and reports failures without claiming disposal', asy
   assert.deepEqual(await close, {
     disposed: [],
     retained: [id],
+    retainedDirectories: { [id]: runtime.calls[0].directory },
     errors: [{ datasetId: id, message: 'socket unavailable' }],
   });
   assert.equal(runtime.calls.length, 1);
@@ -1283,4 +1304,115 @@ test('SQL highlighting preserves exact text and distinguishes literals, comments
   assert.equal(typed('string').length, 3);
   assert.deepEqual(typed('identifier'), ['"FROM"']);
   assert.equal(typed('comment').length, 2);
+});
+
+test('expired sessions clean local copies, but an existing worker directory is retained', async () => {
+  for (const workerDirectoryExists of [false, true]) {
+    const runtime = await loaded();
+    runtime.command = async () => {
+      throw new AVACommandError('Dataset unavailable', false, true);
+    };
+    // First operation supplies the private directory without touching runtime internals.
+    await assert.rejects(runtime.schema(id));
+    const directory = runtime.calls[0].directory;
+    if (workerDirectoryExists) await mkdir(join(directory, `ava-${id}`));
+    const report = await runtime.close();
+    if (workerDirectoryExists) {
+      assert.deepEqual(report.retained, [id]);
+      assert.equal(report.retainedDirectories[id], directory);
+      await access(directory);
+    } else {
+      assert.deepEqual(report, { disposed: [id], retained: [], errors: [] });
+      await assert.rejects(access(directory), { code: 'ENOENT' });
+    }
+  }
+});
+
+test('report binding rules also apply to empty and truncated results before creating files', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'ava-binding-rules-'));
+  const runtime = await loaded();
+  try {
+    for (const truncated of [false, true]) {
+      runtime.command = async () => ({
+        schema: [{ name: 'category' }, { name: 'value' }],
+        data: truncated ? [{ category: 'A', value: 1 }] : [],
+        ...(truncated ? { truncated: true } : {}),
+      });
+      const { queryId } = await runtime.query(id, 'SELECT category, value FROM data');
+      const base = {
+        question: 'Q',
+        conclusion: 'C',
+        queryId,
+        chart: { chartType: 'pie', config: {} },
+      };
+      const output = join(directory, `${truncated}.html`);
+      const report = (section) =>
+        runtime.artifact({ output, title: 'Audit', summary: 'Audit', sections: [section] });
+      for (const key of ['data', 'categories', 'series', 'percent']) {
+        await assert.rejects(
+          report({ ...base, chart: { chartType: 'pie', config: { [key]: 'invented' } } }),
+          /must come from query evidence/,
+        );
+      }
+      await assert.rejects(
+        report({ ...base, chartFields: {}, chartConfigField: 'value' }),
+        /either chartFields/,
+      );
+      await assert.rejects(report({ ...base, chartFields: {} }), /at least one/);
+      await assert.rejects(
+        report({ ...base, chartFields: { category: 'missing' } }),
+        /Unknown result field/,
+      );
+      await assert.rejects(
+        report({ ...base, chartConfigField: 'missing' }),
+        /Unknown result field/,
+      );
+      await assert.rejects(
+        report({ ...base, chart: undefined, chartFields: { value: 'value' } }),
+        /require chart/,
+      );
+      if (truncated) {
+        await assert.rejects(
+          report({ ...base, chartFields: { value: 'value' } }),
+          /config.data.0.category/,
+        );
+      }
+      await assert.rejects(access(output), { code: 'ENOENT' });
+      const valid = await report({
+        ...base,
+        chartFields: { category: 'category', value: 'value' },
+      });
+      assert.match(valid.chartErrors[0].message, truncated ? /截断/ : /没有返回数据/);
+      const html = await readFile(output, 'utf8');
+      assert(!html.includes('DuckDB SQL'));
+    }
+    assert(!runtime.calls.some(({ args }) => args[0] === 'viz'));
+  } finally {
+    runtime.command = async () => ({ datasetId: id, disposed: true });
+    await runtime.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('retrying local cleanup does not dispose an already released worker again', async () => {
+  const runtime = await loaded();
+  let directory;
+  let releases = 0;
+  runtime.command = async () => {
+    releases += 1;
+    directory = runtime.calls.at(-1).directory;
+    await chmod(directory, 0o500);
+    return { datasetId: id, disposed: true };
+  };
+  try {
+    await assert.rejects(runtime.dispose(id), /EACCES|EPERM/);
+    await assert.rejects(runtime.query(id, 'SELECT 1'), /not owned/);
+    await chmod(directory, 0o700);
+    assert.deepEqual(await runtime.dispose(id), { datasetId: id, disposed: true });
+    assert.equal(releases, 1);
+    await assert.rejects(access(directory), { code: 'ENOENT' });
+  } finally {
+    if (directory) await chmod(directory, 0o700).catch(() => {});
+    await runtime.close();
+  }
 });

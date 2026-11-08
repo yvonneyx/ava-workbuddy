@@ -915,7 +915,7 @@
           number: String(index + 1).padStart(2, '0'),
           question: section.question,
           conclusion: section.conclusion,
-          source: '来源：' + query.source + ' · DuckDB SQL',
+          source: '来源：' + query.source,
           sql: query.sql,
           count: query.result.data.length + ' 行 · ' + columns.length + ' 列',
           queryMeta: query.queryId + ' · ' + query.executedAt,

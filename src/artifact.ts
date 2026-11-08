@@ -123,33 +123,49 @@ function field(evidence: QueryEvidence, name: string) {
   }
 }
 
-function bindChart(
-  section: z.output<typeof artifactInput>['sections'][number],
-  evidence: QueryEvidence,
-): ChartSpec {
-  if (evidence.result.truncated) {
-    throw new Error('查询结果已截断，暂不绘图；请先获取完整的聚合结果。');
+type Section = z.output<typeof artifactInput>['sections'][number];
+export interface ChartError {
+  section: number;
+  message: string;
+}
+interface ChartPlan {
+  section: number;
+  spec: ChartSpec;
+}
+
+function validateChartBinding(section: Section, evidence: QueryEvidence) {
+  if (!section.chart) {
+    if (section.chartFields !== undefined || section.chartConfigField !== undefined) {
+      throw new Error('Chart bindings require chart.');
+    }
+    return;
   }
-  // 显式投影图表字段，保留证据的原始列名与数值；不猜测字段或转换单位。
-  const chart = section.chart!;
   for (const key of ['data', 'categories', 'series', 'percent']) {
-    if (Object.hasOwn(chart.config, key)) {
+    if (Object.hasOwn(section.chart.config, key)) {
       throw new Error(`config.${key} must come from query evidence, not inline chart data.`);
     }
   }
-  if (!evidence.result.data.length) {
-    throw new Error('查询没有返回数据，暂不绘图。');
-  }
-  let bound: Record<string, unknown> = { data: evidence.result.data };
   if (section.chartFields !== undefined) {
     if (section.chartConfigField !== undefined) {
       throw new Error('Use either chartFields or chartConfigField, not both.');
     }
-    const fields = Object.entries(section.chartFields);
+    const fields = Object.values(section.chartFields);
     if (!fields.length) {
       throw new Error('chartFields must map at least one native chart field to a query column.');
     }
-    fields.forEach(([, source]) => field(evidence, source));
+    fields.forEach((name) => field(evidence, name));
+  }
+  if (section.chartConfigField !== undefined) {
+    field(evidence, section.chartConfigField);
+  }
+}
+
+function bindChart(section: Section, evidence: QueryEvidence): ChartSpec {
+  // 参数已统一校验；这里只投影字段，不猜测字段、不转换数值或单位。
+  const chart = section.chart!;
+  let bound: Record<string, unknown> = { data: evidence.result.data };
+  if (section.chartFields !== undefined) {
+    const fields = Object.entries(section.chartFields);
     bound = {
       data: evidence.result.data.map((row) =>
         Object.fromEntries(fields.map(([native, source]) => [native, row[source]])),
@@ -157,7 +173,6 @@ function bindChart(
     };
   }
   if (section.chartConfigField !== undefined) {
-    field(evidence, section.chartConfigField);
     if (evidence.result.data.length !== 1) {
       throw new Error('chartConfigField requires a single-row query result.');
     }
@@ -181,20 +196,12 @@ function bindChart(
 }
 
 // -----------------------------------------------------------------------------
-// 报告生成
+// 参数与查询证据校验：纯函数，不渲染、不写文件
 // -----------------------------------------------------------------------------
 
-export async function createArtifact(
-  input: ArtifactInput,
-  history: ReadonlyMap<string, QueryEvidence>,
-  renderChart: RenderChart,
-) {
+function prepareArtifact(input: ArtifactInput, history: ReadonlyMap<string, QueryEvidence>) {
   const report = artifactInput.parse(input);
   outputPath(report.output);
-
-  // -----------------------------------------------------------------------------
-  // 收集并校验证据
-  // -----------------------------------------------------------------------------
 
   const evidence = new Map<string, QueryEvidence>();
   // 先固定本次引用的快照，避免渲染期间查询历史淘汰影响当前报告。
@@ -226,15 +233,25 @@ export async function createArtifact(
     }
   }
 
-  // 参数绑定错误必须在渲染和写文件前失败，修正映射后可复用 queryId 与输出路径。
-  const boundCharts = new Map<number, ChartSpec>();
+  const plans: ChartPlan[] = [];
+  const chartErrors: ChartError[] = [];
   for (const [index, section] of report.sections.entries()) {
     const query = get(section.queryId);
-    if (!section.chart || query.result.truncated || !query.result.data.length) {
-      continue;
-    }
     try {
-      boundCharts.set(index, bindChart(section, query));
+      // 参数规则不随结果是否截断或为空而改变。
+      validateChartBinding(section, query);
+      if (!section.chart) continue;
+      const spec = query.result.data.length ? bindChart(section, query) : undefined;
+      if (query.result.truncated || !spec) {
+        chartErrors.push({
+          section: index + 1,
+          message: query.result.truncated
+            ? '查询结果已截断，暂不绘图；请先获取完整的聚合结果。'
+            : '查询没有返回数据，暂不绘图。',
+        });
+        continue;
+      }
+      plans.push({ section: index + 1, spec });
     } catch (error) {
       throw new Error(
         `sections[${index}] (${section.queryId}): ${
@@ -248,89 +265,106 @@ export async function createArtifact(
     }
   }
 
-  // -----------------------------------------------------------------------------
-  // 渲染图表；单图失败时保留表格与 SQL
-  // -----------------------------------------------------------------------------
+  return { report, queries: [...evidence.values()], plans, chartErrors };
+}
 
-  const chartErrors: { section: number; message: string }[] = [];
+// -----------------------------------------------------------------------------
+// 图表渲染：单图失败只影响该图，保留表格与 SQL
+// -----------------------------------------------------------------------------
+
+async function renderCharts(plans: ChartPlan[], renderChart: RenderChart) {
   const charts: { section: number; html: string }[] = [];
+  const chartErrors: ChartError[] = [];
+  if (!plans.length) return { charts, chartErrors };
   const directory = await mkdtemp(join(tmpdir(), 'ava-workbuddy-artifact-'));
   try {
-    for (const [index, section] of report.sections.entries()) {
-      if (!section.chart) {
-        continue;
-      }
+    for (const { section, spec } of plans) {
       try {
-        const spec = boundCharts.get(index) ?? bindChart(section, get(section.queryId));
-        const rendered = await renderChart(spec, join(directory, `chart-${index}.html`));
-        charts.push({ section: index + 1, html: await readFile(rendered.output, 'utf8') });
+        const rendered = await renderChart(spec, join(directory, `chart-${section}.html`));
+        charts.push({ section, html: await readFile(rendered.output, 'utf8') });
       } catch (error) {
         chartErrors.push({
-          section: index + 1,
+          section,
           message: error instanceof Error ? error.message : String(error),
         });
       }
     }
-
-    // -----------------------------------------------------------------------------
-    // 固定模板与数据绑定
-    // -----------------------------------------------------------------------------
-
-    // 只替换一个 JSON 数据槽；正文由浏览器通过文本节点绑定。
-    const { output, ...fields } = report;
-    const payload = {
-      ...fields,
-      generatedAt: new Date().toISOString(),
-      queries: [...evidence.values()],
-      charts,
-      chartErrors,
-    };
-    // 模板资源在生成时内嵌，报告离开仓库后仍可独立打开。
-    const logo = await readFile(new URL('../public/icon.svg', import.meta.url));
-    const template = (
-      await readFile(new URL('../public/artifact.html', import.meta.url), 'utf8')
-    ).replace('src="icon.svg"', () => `src="data:image/svg+xml;base64,${logo.toString('base64')}"`);
-    const slot = '<!-- ARTIFACT_DATA -->';
-    if (template.split(slot).length !== 2) {
-      throw new Error('Artifact template must contain exactly one ARTIFACT_DATA slot.');
-    }
-    const html = template.replace(
-      slot,
-      () => `<script id="artifact-data" type="application/json">${json(payload)}</script>`,
-    );
-    const dataOutput = output.slice(0, -extname(output).length) + '.json';
-
-    // -----------------------------------------------------------------------------
-    // 写入报告与证据文件
-    // -----------------------------------------------------------------------------
-
-    // 用独占模式预留两个文件；任一步失败都只回滚本次新建的文件。
-    const htmlFile = await open(output, 'wx', 0o600);
-    let dataFile;
-    try {
-      dataFile = await open(dataOutput, 'wx', 0o600);
-      await htmlFile.writeFile(html);
-      await dataFile.writeFile(JSON.stringify(payload, null, 2));
-    } catch (error) {
-      await rm(output);
-      if (dataFile) {
-        await rm(dataOutput);
-      }
-      throw error;
-    } finally {
-      await htmlFile.close();
-      await dataFile?.close();
-    }
-    return {
-      output,
-      dataOutput,
-      sectionCount: report.sections.length,
-      queryCount: evidence.size,
-      htmlGenerated: true,
-      chartPreviewVerified: false,
-      chartErrors,
-    };
+    return { charts, chartErrors };
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+}
+
+// -----------------------------------------------------------------------------
+// 模板绑定与文件写入：独占创建，失败时仅回滚本次文件
+// -----------------------------------------------------------------------------
+
+async function writeArtifact(output: string, payload: unknown) {
+  // 模板资源在生成时内嵌，报告离开仓库后仍可独立打开。
+  const logo = await readFile(new URL('../public/icon.svg', import.meta.url));
+  const template = (
+    await readFile(new URL('../public/artifact.html', import.meta.url), 'utf8')
+  ).replace('src="icon.svg"', () => `src="data:image/svg+xml;base64,${logo.toString('base64')}"`);
+  const slot = '<!-- ARTIFACT_DATA -->';
+  if (template.split(slot).length !== 2) {
+    throw new Error('Artifact template must contain exactly one ARTIFACT_DATA slot.');
+  }
+  const html = template.replace(
+    slot,
+    () => `<script id="artifact-data" type="application/json">${json(payload)}</script>`,
+  );
+  const dataOutput = output.slice(0, -extname(output).length) + '.json';
+
+  // -----------------------------------------------------------------------------
+  // 写入报告与证据文件
+  // -----------------------------------------------------------------------------
+
+  // 用独占模式预留两个文件；任一步失败都只回滚本次新建的文件。
+  const htmlFile = await open(output, 'wx', 0o600);
+  let dataFile;
+  try {
+    dataFile = await open(dataOutput, 'wx', 0o600);
+    await htmlFile.writeFile(html);
+    await dataFile.writeFile(JSON.stringify(payload, null, 2));
+  } catch (error) {
+    await rm(output);
+    if (dataFile) {
+      await rm(dataOutput);
+    }
+    throw error;
+  } finally {
+    await htmlFile.close();
+    await dataFile?.close();
+  }
+  return { output, dataOutput };
+}
+
+// -----------------------------------------------------------------------------
+// 报告编排：校验与绑定 → 渲染 → 写入
+// -----------------------------------------------------------------------------
+
+export async function createArtifact(
+  input: ArtifactInput,
+  history: ReadonlyMap<string, QueryEvidence>,
+  renderChart: RenderChart,
+) {
+  const { report, queries, plans, chartErrors: skipped } = prepareArtifact(input, history);
+  const { charts, chartErrors: failures } = await renderCharts(plans, renderChart);
+  const chartErrors = [...skipped, ...failures].sort((a, b) => a.section - b.section);
+  const { output, ...fields } = report;
+  const files = await writeArtifact(output, {
+    ...fields,
+    generatedAt: new Date().toISOString(),
+    queries,
+    charts,
+    chartErrors,
+  });
+  return {
+    ...files,
+    sectionCount: report.sections.length,
+    queryCount: queries.length,
+    htmlGenerated: true,
+    chartPreviewVerified: false,
+    chartErrors,
+  };
 }

@@ -99,7 +99,11 @@ export function outputPath(path: string) {
 
 /** 命令结果不确定时，AVA 的独立会话进程可能仍在执行任务。 */
 export class AVACommandError extends Error {
-  constructor(message: string, public readonly uncertain = false) {
+  constructor(
+    message: string,
+    public readonly uncertain = false,
+    public readonly unavailable = false,
+  ) {
     super(message);
     this.name = 'AVACommandError';
   }
@@ -123,13 +127,24 @@ export function runCommand(args: string[], input?: string, directory?: string): 
       },
       (error, stdout, stderr) => {
         if (error) {
+          const message = stderr.trim() || error.message;
+          // AVA 的 IPC 错误通过退出码 1 返回，不能仅凭进程是否被杀判断任务已结束。
+          const uncertain = Boolean(
+            error.killed ||
+            error.signal ||
+            error.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER' ||
+            /ECONNRESET|EPIPE|ETIMEDOUT|Dataset (?:request timed out|connection (?:closed before|ended without)|returned an invalid or incomplete response|response exceeds 16 MiB)/.test(
+              message,
+            ),
+          );
           reject(
             new AVACommandError(
               error.killed
                 ? 'AVA command timed out; the operation may still be running. Do not ' +
-                  'automatically retry or dispose this session.'
-                : stderr.trim() || error.message,
-              Boolean(error.killed || error.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER'),
+                    'automatically retry or dispose this session.'
+                : message,
+              uncertain,
+              /Dataset "[^"]+" is unavailable\. Load it again with ava source\./.test(message),
             ),
           );
           return;

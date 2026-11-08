@@ -128,54 +128,24 @@ export async function isolateSource(config: SourceConfig) {
 }
 
 // -----------------------------------------------------------------------------
-// 上游错误可能回显连接串，移除已知凭据后保留诊断和不确定状态
+// 外部服务可能回显转义或截断的凭据，只返回受控诊断，不保留原始错误文本
 // -----------------------------------------------------------------------------
 
 export function sourceErrorRedactor(config: SourceConfig) {
-  const secrets = new Set<string>();
-  const collect = (value: unknown, sensitive = false) => {
-    if (typeof value === 'string') {
-      if (value && (sensitive || /^(https?|mongodb(?:\+srv)?):\/\//i.test(value))) {
-        secrets.add(value);
-        if (/^Bearer\s+/i.test(value)) {
-          secrets.add(value.replace(/^Bearer\s+/i, ''));
-        }
-        if (/^(https?|mongodb(?:\+srv)?):\/\//i.test(value)) {
-          try {
-            const url = new URL(value);
-            if (url.password) {
-              secrets.add(url.password);
-              secrets.add(decodeURIComponent(url.password));
-            }
-            for (const [key, token] of url.searchParams) {
-              if (token && /token|key|secret|signature|credential|password|auth/i.test(key)) {
-                secrets.add(token);
-              }
-            }
-          } catch {
-            // 非 URL 连接串仍按完整值脱敏。
-          }
-        }
-      }
-    } else if (value && typeof value === 'object') {
-      for (const [key, nested] of Object.entries(value)) {
-        collect(
-          nested,
-          sensitive || /password|secret|token|authorization|cookie|connection|headers/i.test(key),
-        );
-      }
-    }
-  };
-  collect(config.options);
-  const values = [...secrets].sort((a, b) => b.length - a.length);
-  // 会话只保留脱敏所需的值，不保留完整数据源配置。
+  const type = config.type;
+  const external = !fileSourceType.safeParse(type).success && !['csv', 'json'].includes(type);
   return (error: unknown) => {
     let message = error instanceof Error ? error.message : String(error);
-    for (const secret of values) {
-      message = message.replaceAll(secret, '[redacted]');
+    if (external) {
+      message =
+        `AVA ${type} operation failed. Upstream details were withheld to protect credentials. ` +
+        'Check the source configuration, permissions, network and query syntax.';
+      if (error instanceof AVACommandError && error.uncertain) {
+        message += ' The outcome is uncertain; do not automatically retry or dispose this session.';
+      }
     }
     return error instanceof AVACommandError
-      ? new AVACommandError(message, error.uncertain)
+      ? new AVACommandError(message, error.uncertain, error.unavailable)
       : new Error(message);
   };
 }

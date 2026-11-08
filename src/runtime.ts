@@ -1,5 +1,5 @@
 import { constants } from 'node:fs';
-import { chmod, copyFile, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { chmod, copyFile, mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -25,18 +25,21 @@ import {
 } from './contracts.js';
 import { createArtifact, type ArtifactInput, type QueryEvidence } from './artifact.js';
 
+interface Session {
+  source: string;
+  directory: string;
+  redactError: ReturnType<typeof sourceErrorRedactor>;
+  state: 'idle' | 'busy' | 'uncertain' | 'released';
+}
+
 /** 一个实例只管理自己创建的会话；调用方应在 finally 中等待 close()。 */
 export class Runtime {
   // -----------------------------------------------------------------------------
   // 会话状态与任务生命周期
   // -----------------------------------------------------------------------------
 
-  #sources = new Map<string, string>();
-  #directories = new Map<string, string>();
-  #redactErrors = new Map<string, ReturnType<typeof sourceErrorRedactor>>();
+  #sessions = new Map<string, Session>();
   #queries = new Map<string, QueryEvidence>();
-  #busy = new Set<string>();
-  #uncertain = new Set<string>();
   #pending = new Set<Promise<unknown>>();
   #cleanup: Promise<CleanupReport> | undefined;
 
@@ -63,7 +66,7 @@ export class Runtime {
     args: string[],
     schema: S,
     input?: string,
-    directory = this.#directories.get(args[1] ?? ''),
+    directory?: string,
   ): Promise<z.output<S>> {
     const result = await this.invoke(args, input, directory);
     const parsed = schema.safeParse(result);
@@ -77,30 +80,33 @@ export class Runtime {
   }
 
   // 结果不确定的任务可能仍在 AVA 中运行，因此阻止自动重试和释放。
-  #session<T>(id: string, operation: () => Promise<T>): Promise<T> {
+  #session<T>(id: string, operation: (session: Session) => Promise<T>): Promise<T> {
     return this.#run(async () => {
-      if (!this.#sources.has(id)) {
+      const session = this.#sessions.get(id);
+      if (!session || session.state === 'released') {
         throw new Error('This dataset is not owned by this MCP connection. Load the source again.');
       }
-      if (this.#uncertain.has(id)) {
+      if (session.state === 'uncertain') {
         throw new Error(
           'A previous operation has an uncertain outcome. Do not retry or dispose it ' +
             'automatically; inspect the task first.',
         );
       }
-      if (this.#busy.has(id)) {
+      if (session.state === 'busy') {
         throw new Error('A command is already running for this dataset. Wait for its result.');
       }
-      this.#busy.add(id);
+      session.state = 'busy';
       try {
-        return await operation();
+        return await operation(session);
       } catch (error) {
         if (error instanceof AVACommandError && error.uncertain) {
-          this.#uncertain.add(id);
+          session.state = 'uncertain';
         }
-        throw this.#redactErrors.get(id)!(error);
+        throw session.redactError(error);
       } finally {
-        this.#busy.delete(id);
+        if (session.state === 'busy') {
+          session.state = 'idle';
+        }
       }
     });
   }
@@ -123,9 +129,12 @@ export class Runtime {
           JSON.stringify(isolated.config),
           directory,
         );
-        this.#sources.set(result.datasetId, label);
-        this.#directories.set(result.datasetId, directory);
-        this.#redactErrors.set(result.datasetId, redactError);
+        this.#sessions.set(result.datasetId, {
+          source: label,
+          directory,
+          redactError,
+          state: 'idle',
+        });
         return result;
       } catch (error) {
         const failure = redactError(error);
@@ -142,7 +151,9 @@ export class Runtime {
   }
 
   schema(id: string): Promise<SchemaResult> {
-    return this.#session(id, () => this.#execute(['schema', id], schemaResult));
+    return this.#session(id, (session) =>
+      this.#execute(['schema', id], schemaResult, undefined, session.directory),
+    );
   }
 
   async query(id: string, sql: string, maxRows?: number): Promise<ExecutedQueryResult> {
@@ -152,17 +163,18 @@ export class Runtime {
     if (maxRows !== undefined && (!Number.isInteger(maxRows) || maxRows < 1 || maxRows > 10000)) {
       throw new Error('maxRows must be between 1 and 10000.');
     }
-    return this.#session(id, async () => {
+    return this.#session(id, async (session) => {
       const result = await this.#execute(
         ['query', id, '--dsl', '-', ...(maxRows ? ['--max-rows', String(maxRows)] : [])],
         queryResult,
         sql,
+        session.directory,
       );
       const queryId = `q_${randomUUID()}`;
       this.#queries.set(queryId, {
         queryId,
         datasetId: id,
-        source: this.#sources.get(id)!,
+        source: session.source,
         sql,
         executedAt: new Date().toISOString(),
         result: structuredClone(result),
@@ -180,15 +192,20 @@ export class Runtime {
   // -----------------------------------------------------------------------------
 
   semantic(id: string, definition?: SemanticDefinition): Promise<SemanticDefinition> {
-    return this.#session(id, async () => {
+    return this.#session(id, async (session) => {
       if (definition === undefined) {
-        return this.#execute(['semantic', id], semanticResult);
+        return this.#execute(['semantic', id], semanticResult, undefined, session.directory);
       }
       const directory = await mkdtemp(join(tmpdir(), 'ava-workbuddy-semantic-'));
       try {
         const file = join(directory, 'semantic.json');
         await writeFile(file, JSON.stringify(semanticResult.parse(definition)), { mode: 0o600 });
-        return await this.#execute(['semantic', id, '--file', file], semanticResult);
+        return await this.#execute(
+          ['semantic', id, '--file', file],
+          semanticResult,
+          undefined,
+          session.directory,
+        );
       } finally {
         await rm(directory, { recursive: true, force: true });
       }
@@ -230,19 +247,37 @@ export class Runtime {
   // -----------------------------------------------------------------------------
 
   dispose(id: string) {
-    return this.#session(id, () => this.#release(id));
+    // released 表示上游已结束但本地清理失败，允许再次清理目录。
+    const session = this.#sessions.get(id);
+    if (session?.state === 'released') {
+      return this.#run(() => this.#release(id, session));
+    }
+    return this.#session(id, (owned) => this.#release(id, owned));
   }
 
-  async #release(id: string) {
-    const result = this.#sources.has(id)
-      ? await this.#execute(['dispose', id], disposeResult)
-      : { datasetId: id, disposed: true as const };
-    // 先确认 AVA 已释放；目录清理失败时 close() 仍可重试本地清理。
-    this.#sources.delete(id);
-    await rm(this.#directories.get(id)!, { recursive: true, force: true });
-    this.#directories.delete(id);
-    this.#redactErrors.delete(id);
-    return result;
+  async #release(id: string, session: Session) {
+    if (session.state !== 'released') {
+      try {
+        await this.#execute(['dispose', id], disposeResult, undefined, session.directory);
+      } catch (error) {
+        if (!(error instanceof AVACommandError) || !error.unavailable) {
+          throw error;
+        }
+        // 固定版本 AVA 在释放引擎后删除会话目录；仅 socket 不通不足以确认任务结束。
+        const exists = await stat(join(session.directory, `ava-${id}`)).then(
+          () => true,
+          (failure: NodeJS.ErrnoException) => {
+            if (failure.code === 'ENOENT') return false;
+            throw failure;
+          },
+        );
+        if (exists) throw error;
+      }
+      session.state = 'released';
+    }
+    await rm(session.directory, { recursive: true, force: true });
+    this.#sessions.delete(id);
+    return { datasetId: id, disposed: true as const };
   }
 
   /** 停止接收新任务，等待已接受的任务，再释放确定空闲的会话。 */
@@ -250,23 +285,23 @@ export class Runtime {
     this.#cleanup ??= Promise.resolve().then(async () => {
       await Promise.allSettled([...this.#pending]);
       const report: CleanupReport = { disposed: [], retained: [], errors: [] };
-      for (const id of this.#directories.keys()) {
-        if (this.#uncertain.has(id)) {
-          continue;
-        }
+      for (const [id, session] of this.#sessions) {
+        if (session.state === 'uncertain') continue;
         try {
-          await this.#release(id);
+          await this.#release(id, session);
           report.disposed.push(id);
         } catch (error) {
-          report.errors.push({
-            datasetId: id,
-            message: this.#redactErrors.get(id)!(error).message,
-          });
+          report.errors.push({ datasetId: id, message: session.redactError(error).message });
         }
       }
-      report.retained = [...this.#directories.keys()];
+      report.retained = [...this.#sessions.keys()];
+      if (report.retained.length) {
+        report.retainedDirectories = Object.fromEntries(
+          [...this.#sessions].map(([id, session]) => [id, session.directory]),
+        );
+      }
       this.#queries.clear();
-      this.#redactErrors.clear();
+      this.#sessions.clear();
       return report;
     });
     return this.#cleanup;

@@ -85,115 +85,143 @@ const presentation = {
 };
 const axes = { axisXTitle: z.string().optional(), axisYTitle: z.string().optional() };
 const grouped = { stack: z.boolean().optional(), group: z.boolean().optional() };
-const nativeChartConfigs = {
-  column: z.looseObject({ data: observations, ...axes, ...grouped }),
-  bar: z.looseObject({ data: observations, ...axes, ...grouped }),
-  line: z.looseObject({ data: z.array(timeValue).min(1), ...axes }),
-  area: z.looseObject({ data: z.array(timeValue).min(1), ...axes, stack: z.boolean().optional() }),
-  pie: z.looseObject({
-    data: z.array(z.looseObject({ category: label, value: number.nonnegative() })).min(1),
-    innerRadius: number.min(0).max(1).optional(),
-  }),
-  scatter: z.looseObject({
-    data: z.array(z.looseObject({ x: number, y: number, group })).min(1),
-    ...axes,
-  }),
-  histogram: z.looseObject({
-    data: z.array(number).min(1),
-    binNumber: z.number().int().positive().optional(),
-    ...axes,
-  }),
-  boxplot: z.looseObject({ data: observations, ...axes }),
-  violin: z.looseObject({ data: observations, ...axes }),
-  radar: z.looseObject({
-    data: z.array(z.looseObject({ name: label, value: number, group })).min(1),
-    align: z.boolean().optional(),
-  }),
-  funnel: z.looseObject({ data: observations }),
-  waterfall: z.looseObject({
-    data: z
-      .array(
-        z.union([
-          categoryValue.extend({ isTotal: z.literal(false).optional() }),
-          z.looseObject({ category: label, isTotal: z.literal(true), value: number.optional() }),
-        ]),
-      )
-      .min(1),
-    ...axes,
-  }),
-  liquid: z.looseObject({
-    percent: number.min(0).max(1),
-    shape: z.enum(['rect', 'circle', 'pin', 'triangle']).optional(),
-  }),
-  'word-cloud': z.looseObject({
-    data: z.array(z.looseObject({ text: z.string(), value: number })).min(1),
-  }),
-  venn: z.looseObject({
-    data: z
-      .array(
-        z.looseObject({
-          sets: z.array(z.string()).min(1),
-          value: number.nonnegative(),
-          label: z.string().optional(),
-        }),
-      )
-      .min(1),
-  }),
-  treemap: z.looseObject({ data: z.array(treeNode).min(1) }),
-  sankey: z.looseObject({
-    data: z
-      .array(z.looseObject({ source: label, target: label, value: number.nonnegative() }))
-      .min(1),
-    nodeAlign: z.enum(['left', 'center', 'right', 'justify']).optional(),
-  }),
-  table: z.looseObject({ data: z.array(z.record(z.string(), z.unknown())).min(1) }),
-  'dual-axes': z.looseObject({
-    categories: z.array(label).min(1),
-    series: z
-      .array(
-        z.looseObject({
-          type: z.enum(['column', 'line']),
-          axisYTitle: z.string().optional(),
-          data: z.array(number).min(1),
-        }),
-      )
-      .min(1),
-    axisXTitle: z.string().optional(),
-  }),
-};
+// 先以字面量构造每个变体，再组成联合，保留图表类型与配置的对应关系。
+const chartDataKeys = ['data', 'categories', 'series', 'percent'] as const;
+function defineChart<const T extends string, S extends z.ZodRawShape>(
+  type: T,
+  config: z.ZodObject<S, z.core.$loose>,
+) {
+  const display = { ...presentation, type: z.literal(type).optional() };
+  // 过滤的键与类型投影一致；报告只接收展示配置，数据来自查询证据。
+  const options = Object.fromEntries(
+    Object.entries(config.shape).filter(([key]) => !chartDataKeys.some((data) => data === key)),
+  ) as Omit<S, (typeof chartDataKeys)[number]>;
+  return {
+    full: z.object({ chartType: z.literal(type), config: config.extend(display) }).strict(),
+    artifact: z
+      .object({
+        chartType: z.literal(type),
+        config: z.looseObject(options).extend(display),
+      })
+      .strict(),
+  };
+}
 
-const chartTypes = Object.keys(nativeChartConfigs) as (keyof typeof nativeChartConfigs)[];
-const chartSchemas = chartTypes.map((type) =>
-  z
-    .object({
-      chartType: z.literal(type),
-      config: nativeChartConfigs[type].extend({
-        ...presentation,
-        type: z.literal(type).optional(),
-      }),
-    })
-    .strict(),
-);
+const chartDefinitions = [
+  defineChart('column', z.looseObject({ data: observations, ...axes, ...grouped })),
+  defineChart('bar', z.looseObject({ data: observations, ...axes, ...grouped })),
+  defineChart('line', z.looseObject({ data: z.array(timeValue).min(1), ...axes })),
+  defineChart(
+    'area',
+    z.looseObject({ data: z.array(timeValue).min(1), ...axes, stack: z.boolean().optional() }),
+  ),
+  defineChart(
+    'pie',
+    z.looseObject({
+      data: z.array(z.looseObject({ category: label, value: number.nonnegative() })).min(1),
+      innerRadius: number.min(0).max(1).optional(),
+    }),
+  ),
+  defineChart(
+    'scatter',
+    z.looseObject({
+      data: z.array(z.looseObject({ x: number, y: number, group })).min(1),
+      ...axes,
+    }),
+  ),
+  defineChart(
+    'histogram',
+    z.looseObject({
+      data: z.array(number).min(1),
+      binNumber: z.number().int().positive().optional(),
+      ...axes,
+    }),
+  ),
+  defineChart('boxplot', z.looseObject({ data: observations, ...axes })),
+  defineChart('violin', z.looseObject({ data: observations, ...axes })),
+  defineChart(
+    'radar',
+    z.looseObject({
+      data: z.array(z.looseObject({ name: label, value: number, group })).min(1),
+      align: z.boolean().optional(),
+    }),
+  ),
+  defineChart('funnel', z.looseObject({ data: observations })),
+  defineChart(
+    'waterfall',
+    z.looseObject({
+      data: z
+        .array(
+          z.union([
+            categoryValue.extend({ isTotal: z.literal(false).optional() }),
+            z.looseObject({ category: label, isTotal: z.literal(true), value: number.optional() }),
+          ]),
+        )
+        .min(1),
+      ...axes,
+    }),
+  ),
+  defineChart(
+    'liquid',
+    z.looseObject({
+      percent: number.min(0).max(1),
+      shape: z.enum(['rect', 'circle', 'pin', 'triangle']).optional(),
+    }),
+  ),
+  defineChart(
+    'word-cloud',
+    z.looseObject({
+      data: z.array(z.looseObject({ text: z.string(), value: number })).min(1),
+    }),
+  ),
+  defineChart(
+    'venn',
+    z.looseObject({
+      data: z
+        .array(
+          z.looseObject({
+            sets: z.array(z.string()).min(1),
+            value: number.nonnegative(),
+            label: z.string().optional(),
+          }),
+        )
+        .min(1),
+    }),
+  ),
+  defineChart('treemap', z.looseObject({ data: z.array(treeNode).min(1) })),
+  defineChart(
+    'sankey',
+    z.looseObject({
+      data: z
+        .array(z.looseObject({ source: label, target: label, value: number.nonnegative() }))
+        .min(1),
+      nodeAlign: z.enum(['left', 'center', 'right', 'justify']).optional(),
+    }),
+  ),
+  defineChart('table', z.looseObject({ data: z.array(z.record(z.string(), z.unknown())).min(1) })),
+  defineChart(
+    'dual-axes',
+    z.looseObject({
+      categories: z.array(label).min(1),
+      series: z
+        .array(
+          z.looseObject({
+            type: z.enum(['column', 'line']),
+            axisYTitle: z.string().optional(),
+            data: z.array(number).min(1),
+          }),
+        )
+        .min(1),
+      axisXTitle: z.string().optional(),
+    }),
+  ),
+] as const;
+const chartSchemas = chartDefinitions.map((chart) => chart.full);
 export const chartSpec = z.discriminatedUnion('chartType', [
   chartSchemas[0]!,
   ...chartSchemas.slice(1),
 ]);
-
-// 报告先接收展示配置，数据绑定完成后再按完整 chartSpec 校验。
-const artifactChartSchemas = chartTypes.map((type) => {
-  // 数据由查询证据提供，MCP 报告参数只展示该图表的渲染选项。
-  const options = Object.fromEntries(
-    Object.entries(nativeChartConfigs[type].shape).filter(
-      ([key]) => !['data', 'categories', 'series', 'percent'].includes(key),
-    ),
-  );
-  return z
-    .object({
-      chartType: z.literal(type),
-      config: z.looseObject(options).extend({ ...presentation, type: z.literal(type).optional() }),
-    })
-    .strict();
-});
+const artifactChartSchemas = chartDefinitions.map((chart) => chart.artifact);
 export const artifactChartSpec = z.discriminatedUnion('chartType', [
   artifactChartSchemas[0]!,
   ...artifactChartSchemas.slice(1),
@@ -214,5 +242,6 @@ export type ChartSpec = z.infer<typeof chartSpec>;
 export interface CleanupReport {
   disposed: string[];
   retained: string[];
+  retainedDirectories?: Record<string, string>;
   errors: { datasetId: string; message: string }[];
 }

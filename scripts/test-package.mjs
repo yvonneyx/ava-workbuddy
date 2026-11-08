@@ -129,11 +129,20 @@ const monthly: ArtifactInput = {
 const standalone: ChartSpec = {
   chartType: 'column', config: { data: [{ category: 'Jan', value: 10 }] },
 };
+const nativeOptions: ChartSpec = {
+  chartType: 'column', config: { data: [{ category: 'A', value: 1 }], label: { position: 'top' } },
+};
 const embedded = createServer();
 await embedded.close();
-console.log(rows, report, monthly, standalone, cleanup.retained, checkEnvironment().avaVersion);
+console.log(rows, report, monthly, standalone, nativeOptions, cleanup.retained, checkEnvironment().avaVersion);
 // @ts-expect-error Chart types are limited to the pinned AVA renderer.
 const unsupportedChart: ChartSpec = { chartType: 'unsupported', config: {} };
+// @ts-expect-error A column chart requires category/value rows, not a liquid config.
+const wrongConfig: ChartSpec = { chartType: 'column', config: { percent: 0.5 } };
+// @ts-expect-error A line chart requires time/value rows.
+const wrongRows: ChartSpec = { chartType: 'line', config: { data: [{ category: 'Jan', value: 1 }] } };
+// @ts-expect-error The optional native type must match chartType.
+const wrongNativeType: ChartSpec = { chartType: 'column', config: { type: 'pie', data: [{ category: 'A', value: 1 }] } };
 // @ts-expect-error SQL must be a string, never arbitrary execution options.
 runtime.query(source.datasetId, 123);
 // @ts-expect-error Native source types must be supported by AVA.

@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   access,
+  mkdir,
   copyFile,
   mkdtemp,
   readFile,
@@ -11,6 +12,9 @@ import {
   writeFile,
 } from 'node:fs/promises';
 import { createServer } from 'node:http';
+import { createServer as createSocketServer } from 'node:net';
+import { runCommand } from '../lib/ava.js';
+import { AVACommandError } from '../lib/index.js';
 import { once } from 'node:events';
 import { DatabaseSync } from 'node:sqlite';
 import { DuckDBInstance } from '@duckdb/node-api';
@@ -58,11 +62,13 @@ test(
   'MCP redacts database credentials from schema and query errors',
   { timeout: 30000 },
   async () => {
-    const secret = 'integration-dummy-password';
+    const secret = 'integration dummy-password';
     const remote = createServer((request, response) => {
       request.resume();
       response.writeHead(401, { 'Content-Type': 'text/plain' });
-      response.end(`Authentication failed; password=${secret}`);
+      response.end(
+        `Authentication failed; password=${secret}; partial=dummy-password; escaped=integration%20dummy-password`,
+      );
     });
     remote.listen(0, '127.0.0.1');
     await once(remote, 'listening');
@@ -88,8 +94,9 @@ test(
         });
         assert.equal(result.isError, true);
         const message = result.content.map((item) => item.text).join('\n');
-        assert.match(message, /Authentication failed/);
-        assert.match(message, /\[redacted\]/);
+        assert.match(message, /withheld to protect credentials/);
+        assert(!message.includes('dummy-password'));
+        assert(!message.includes('Authentication failed'));
         assert(!message.includes(secret));
       }
       await call(client, 'ava_dispose', source);
@@ -589,3 +596,76 @@ test(
     }
   },
 );
+
+test('real CLI transport failures block reuse and retain the private directory', async () => {
+  for (const response of [
+    '{incomplete',
+    '',
+    JSON.stringify({ ok: false, error: 'read ECONNRESET' }),
+  ]) {
+    const datasetId = 'ds_transport_123456abcdef';
+    class SocketRuntime extends Runtime {
+      directory;
+      invoke(args, input, directory) {
+        if (args[0] === 'source') {
+          this.directory = directory;
+          return Promise.resolve({ datasetId });
+        }
+        return super.invoke(args, input, directory);
+      }
+    }
+    const runtime = new SocketRuntime();
+    await runtime.source(join(root, 'tests/fixtures/sales.csv'));
+    const nativeDirectory = join(runtime.directory, `ava-${datasetId}`);
+    await mkdir(nativeDirectory);
+    let requests = 0;
+    const socket = createSocketServer({ allowHalfOpen: true }, (client) => {
+      requests += 1;
+      client.resume();
+      client.on('end', () => client.end(response));
+    });
+    socket.listen(join(nativeDirectory, 'ipc'));
+    await once(socket, 'listening');
+    try {
+      await assert.rejects(
+        runtime.query(datasetId, 'SELECT 1'),
+        (error) => error instanceof AVACommandError && error.uncertain,
+      );
+      await assert.rejects(runtime.query(datasetId, 'SELECT 1'), /uncertain/);
+      await assert.rejects(runtime.dispose(datasetId), /uncertain/);
+      const report = await runtime.close();
+      assert.deepEqual(report.retained, [datasetId]);
+      assert.equal(report.retainedDirectories[datasetId], runtime.directory);
+      await access(runtime.directory);
+      assert.equal(requests, 1);
+    } finally {
+      await new Promise((resolve) => socket.close(resolve));
+      await rm(runtime.directory, { recursive: true, force: true });
+    }
+  }
+});
+
+test('already released real AVA sessions still remove their private input copies', async () => {
+  for (const method of ['dispose', 'close']) {
+    class ObservedRuntime extends Runtime {
+      directory;
+      invoke(args, input, directory) {
+        if (args[0] === 'source') this.directory = directory;
+        return super.invoke(args, input, directory);
+      }
+    }
+    const runtime = new ObservedRuntime();
+    try {
+      const { datasetId } = await runtime.source(join(root, 'tests/fixtures/sales.csv'));
+      // AVA's idle expiry performs this same release before deleting the native directory.
+      await runCommand(['dispose', datasetId], undefined, runtime.directory);
+      await assert.rejects(access(join(runtime.directory, `ava-${datasetId}`)), { code: 'ENOENT' });
+      const result = await runtime[method](datasetId);
+      if (method === 'dispose') assert.equal(result.disposed, true);
+      else assert.deepEqual(result, { disposed: [datasetId], retained: [], errors: [] });
+      await assert.rejects(access(runtime.directory), { code: 'ENOENT' });
+    } finally {
+      await runtime.close();
+    }
+  }
+});
