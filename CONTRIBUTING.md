@@ -33,6 +33,14 @@ npm run test:package
 提交 PR 时说明触发场景、行为变化和实际执行的验证命令。保持修改聚焦，不提交 `lib/`、`dist/`、缓存或本
 机绝对路径。
 
+## 个人专家分享
+
+分享前，确保本机专家源与已安装版本的 `.mcp.json` 均与 `connector/mcp.json` 一致。同名的全局 AVA MCP 若已配置，也须同步；同一对话只启用一个 AVA MCP。分享配置保留 `command: "npx"` 和固定版本 Release URL，不能引用创建者的 Node.js、源码或运行包绝对路径。
+
+重启 WorkBuddy 后连接 AVA，检查实际服务进程来自 Release 安装，调用 `ava_check` 核对版本，再验证真实查询、报告与图表。旧进程或本地运行包验收通过不能替代 Release 安装链路验收。
+
+完成验收后，在「我的专家」中重新生成分享链接，通过客户端安全检测，并同步 README 与使用教程。首次分发还应在另一台机器验证复制与连接；记录 GitHub / npm 下载故障，不把缓存命中视为全新安装成功。
+
 ## 手动发布
 
 1. 同步 `package.json`、`npm-shrinkwrap.json`、连接器和专家配置中的版本，更新 `connector/mcp.json` 的

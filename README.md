@@ -11,6 +11,14 @@ WorkBuddy 理解问题并编写 SQL，AVA 执行计算和制图。结构化数�
 
 ## 开始使用
 
+### 一键复制专家
+
+通过[分享链接][expert-share]复制「AVA 数据分析师」，进入专家对话后按提示连接 AVA，上传 CSV / Excel 并描述分析目标。
+
+专家的 MCP 依赖使用固定版本的 GitHub Release 运行包，通过 `npx` 下载并在用户本机启动，无需使用创建者电脑上的路径。首次连接需要安装受支持的 Node.js，并能访问 GitHub 和 npm。
+
+上手案例见[使用教程](docs/ava-workbuddy-guide.md)。数据库和飞书仍需接收方自行配置网络、权限与凭据。
+
 ### 安装包
 
 运行 `npm run package` 后，`dist/` 中生成：
@@ -130,3 +138,5 @@ Windows 尚未支持。数据库与飞书连接需要对应网络、权限和凭
 CDN 地址，渲染器 URL 未锁定版本。
 
 本项目是独立的社区集成，采用 [MIT License](LICENSE)。上游来源和许可证见 [NOTICE](NOTICE)。
+
+[expert-share]: https://www.workbuddy.ai/work/launch/?sharecode=nm3SFE1xYGtxz8Cm7tWsV-c9oGpYLYAs6QQshRmf6sMqxhFWsHRFy6RIX8lMWx10&expertname=AVA+%E6%95%B0%E6%8D%AE%E5%88%86%E6%9E%90%E5%B8%88&buddy_type=workbuddy-ai
