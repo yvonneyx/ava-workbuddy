@@ -8,9 +8,6 @@ Its report helper, template, icon and MIT terms are included together in the
 Skill assets directory. The source reference and archive SHA-256 are recorded
 in expert/ava-skill.json. No modified copy is maintained here.
 
-@antv/ava@4.0.0 is a development dependency for CLI verification only. It is not
-bundled in the expert archive.
-
 public/avatars/expert.png is an original AI-generated data analyst illustration
 created for this integration with OpenAI ImageGen, resized to 512x512 for the
 WorkBuddy expert avatar. It does not reuse the AntV logo.
