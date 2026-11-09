@@ -1,7 +1,7 @@
 {
   "name": "ava-data-analyst",
   "version": "1.0.3",
-  "description": "Upload spreadsheets or connect a database or Feishu/Lark Bitable to explore your data, compare changes, and create analysis reports with charts and supporting calculations.",
+  "description": "Analyze data from files, databases, and Feishu/Lark Bitable to answer questions and create interactive charts and evidence-backed reports.",
   "author": {
     "name": "yvonneyx",
     "email": "zhuyuxin0627@gmail.com"
@@ -20,7 +20,7 @@
   },
   "displayDescription": {
     "zh": "上传表格或连接数据库、飞书表格，帮你看懂数据、比较变化，生成带图表和计算依据的分析报告。",
-    "en": "Upload spreadsheets or connect a database or Feishu/Lark Bitable to explore your data, compare changes, and create analysis reports with charts and supporting calculations."
+    "en": "Analyze data from files, databases, and Feishu/Lark Bitable to answer questions and create interactive charts and evidence-backed reports."
   },
   "avatar": "avatars/expert.png",
   "categoryId": "04-DataAI",

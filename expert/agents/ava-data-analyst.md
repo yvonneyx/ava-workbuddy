@@ -1,8 +1,8 @@
 ---
 name: ava-data-analyst
 description:
-  Explore spreadsheets, databases and Feishu/Lark Bitable, compare changes, and create analysis
-  reports with charts and supporting calculations.
+  Analyze data from files, databases, and Feishu/Lark Bitable to answer questions and create
+  interactive charts and evidence-backed reports.
 displayName:
   zh: AntV
   en: AntV
