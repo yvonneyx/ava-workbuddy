@@ -1,12 +1,13 @@
 {
   "name": "ava-data-analyst",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Analyze local files, direct database connections and Feishu/Lark Bitable. Verify metrics and deliver traceable reports with AVA.",
   "author": {
     "name": "yvonneyx",
     "email": "zhuyuxin0627@gmail.com"
   },
   "agents": ["./agents/ava-data-analyst.md"],
+  "skills": ["./skills/ava"],
   "expertType": "agent",
   "agentName": "ava-data-analyst",
   "displayName": {
@@ -56,9 +57,6 @@
       "en": "Analyze this Feishu/Lark Bitable, answer my questions, and create a report with findings, charts and query evidence."
     }
   ],
-  "dependencies": {
-    "mcpServers": "./.mcp.json"
-  },
   "homepage": "https://github.com/yvonneyx/ava-workbuddy",
   "license": "MIT"
 }

@@ -1,91 +1,47 @@
 # 参与开发
 
-本项目维护 WorkBuddy 接入，AVA 通过固定版本的 npm 依赖使用。
+本仓库只维护 WorkBuddy 专家配置与打包。分析流程、业务语义、图表和报告直接使用上游 AVA
+Skill，不另行维护运行服务或 Skill 副本。
 
-## 本地开发与验证
+## 开发与验证
 
-需要 macOS/Linux、Node.js 22.13+、npm、`zip`、`unzip` 和 `tar`。
+需要 macOS / Linux、Node.js 22.13+、npm、`zip`、`unzip` 和 `tar`。
 
 ```sh
-npm ci
+npm ci --no-audit --no-fund
 npm test
-npm run test:integration
 npm run test:package
 ```
 
-`npm test` 自动构建；单独运行集成测试或 CLI 前先执行 `npm run build`。`test:package` 会打包并在新目录
-安装验证。真实测试需要子进程、Unix socket 和网络访问。
+打包需访问 GitHub codeload；真实 CLI 验证需要子进程、Unix
+socket 和 AVA 的运行依赖。测试只使用模拟数据，不需要模型密钥或远程数据源凭据。
 
 ## 修改约定
 
-- 开启 `strict`、`noUncheckedIndexedAccess` 和 `exactOptionalPropertyTypes`，不要用 `any` 或关闭检查
-  来绕过类型错误。
-- `src/` 放运行代码，`tests/` 放测试、示例和 fixtures，`public/` 放模板、图标和头像。
-- 在文件、子进程和 MCP 边界保留校验。运行命令使用参数数组和 stdin，不拼接 shell；只调用无需模型的
-  AVA 命令；不要覆盖用户文件。
-- 会话只属于创建它的运行时；同一会话串行执行。超时、输出溢出或不可信响应都可能留下仍在执行的操作，不
-  能自动重试或强制释放。
-- 库导入不得写 stdout、启动服务或安装信号处理器。
-- 分析规则写在 MCP 工具描述中，参数与原生图表形状写在 schema 中，服务级 `instructions` 只作导航。
-- `expert/` 维护身份与表达偏好，`connector/` 维护连接配置和展示信息；资源与 MCP 配置只维护一份。
-- 行为修改补回归测试；协议或安装方式变化需通过集成和打包安装测试。
+- `expert/` 维护身份、表达偏好与上游引用。`plugin.json` 声明 `./skills/ava`，Agent 的
+  `skills: [ava]` 负责预加载，不附带 MCP 配置。
+- 上游 Skill 只维护 `expert/ava-skill.json`
+  中的分支来源、提交和归档 SHA-256。更新时读取分支实际内容，核验提交和完整归档，再运行测试；不直接编辑打包后的 Skill。
+- `scripts/` 维护打包与校验代码，`tests/` 放测试、示例和 fixtures，`public/`
+  集中维护专家图标和头像。
+- 文件与子进程边界保留校验，运行命令使用参数数组，不拼接 shell。行为变化补必要回归，分发变化通过解包后的真实 CLI 验证。
+- 不提交 `dist/`、缓存、生成文件或本机绝对路径。保持 `.prettierrc.json` 格式。
 
-提交 PR 时说明触发场景、行为变化和实际执行的验证命令。保持修改聚焦，不提交 `lib/`、`dist/`、缓存或本
-机绝对路径。
+## 本机专家验收
 
-## 个人专家分享
+先完成打包测试，再备份并同步本机专家源和 WorkBuddy 实际加载的安装目录。升级时移除专家内的旧
+`.mcp.json`，停用本机同名 AVA MCP；保留其他连接器和专家设置。
 
-分享前，确保本机专家源与已安装版本的 `.mcp.json` 均与 `connector/mcp.json` 一致。同名的全局 AVA MCP 若已配置，也须同步；同一对话只启用一个 AVA MCP。分享配置保留 `command: "npx"` 和固定版本 Release URL，不能引用创建者的 Node.js、源码或运行包绝对路径。
+新建专家对话，确认实际 Skill 路径与固定提交一致，检查 Node.js、CLI 包版本和工具说明，再验证查询、报告、图表与追问。CLI 的安装路径属于本机环境，不得写进分发包；接收方也需安装 AVA
+CLI 4.x。
 
-重启 WorkBuddy 后连接 AVA，检查实际服务进程来自 Release 安装，调用 `ava_check` 核对版本，再验证真实查询、报告与图表。旧进程或本地运行包验收通过不能替代 Release 安装链路验收。
-
-完成验收后，在「我的专家」中重新生成分享链接，通过客户端安全检测，并同步 README 与使用教程。首次分发还应在另一台机器验证复制与连接；记录 GitHub / npm 下载故障，不把缓存命中视为全新安装成功。
+用户要求分享时再重新生成链接，完成客户端安全检测并更新 README 和教程。首次分发应在另一台机器验证导入和 CLI 安装；本机安装成功不能替代接收方验收。
 
 ## 手动发布
 
-1. 同步 `package.json`、`npm-shrinkwrap.json`、连接器和专家配置中的版本，更新 `connector/mcp.json` 的
-   Release 安装 URL、CHANGELOG 和相关文档。完成上面的验证并提交待发布改动。
-
-2. 在同一终端启用指定 SSH 密钥，核对欢迎信息中的账号为 `yvonneyx`。`ssh -T` 认证成功时也可能返回 1。
-
-   ```sh
-   eval `ssh-agent -s`
-   ssh-add ~/.ssh/id_rsa_github
-   ssh -T git@github.com
-   gh api user --jq .login
-   ```
-
-   `origin` 使用 `git@github.com:yvonneyx/ava-workbuddy.git`，`gh` 登录账号也应为 `yvonneyx`。
-
-3. 推送源码和 tag，创建 Release 并上传三个分发包与校验和：
-
-   ```sh
-   release_version=$(node -p "require('./package.json').version")
-   git tag -a "v${release_version}" -m "Release ${release_version}"
-   GIT_SSH_COMMAND='ssh -i ~/.ssh/id_rsa_github -o IdentitiesOnly=yes' \
-     git push origin main "v${release_version}"
-   gh release create "v${release_version}" \
-     "dist/ava-workbuddy-${release_version}.tgz" \
-     "dist/ava-workbuddy-expert-${release_version}.zip" \
-     "dist/ava-workbuddy-connector-${release_version}.zip" \
-     dist/SHA256SUMS \
-     --repo yvonneyx/ava-workbuddy --verify-tag \
-     --title "v${release_version}" --generate-notes
-   ```
-
-   预发布加 `--prerelease`；已发布附件不覆盖，修复使用新版本。
-
-4. 用公开地址验证安装，再到 WorkBuddy 开放平台上传专家或连接器 ZIP、提交审核：
-
-   ```sh
-   release_url="https://github.com/yvonneyx/ava-workbuddy/releases/download/v${release_version}"
-   npx --yes \
-     --package="${release_url}/ava-workbuddy-${release_version}.tgz" \
-     ava-workbuddy check
-   ```
-
-客户端验收：导入 ZIP 后分析 `tests/fixtures/sales.csv`，核对收入 30,000 → 37,500、增长 25%，检查报告与
-图表，并验证连接重启后可重新加载。同一对话只启用一个 AVA MCP。
-
-平台字段以[专家规范](https://open.workbuddy.cn/docs/expert)和
-[连接器规范](https://open.workbuddy.cn/docs/connector)为准。
+1. 同步 `package.json`、`npm-shrinkwrap.json` 与专家版本，更新 CHANGELOG，完成测试并提交。
+2. 用 `gh api user --jq .login` 核验账号为 `yvonneyx`。按 AGENTS.md 在同一 shell 启动 SSH
+   agent、添加指定密钥并核对欢迎信息，再推送源码与 tag。
+3. 创建 GitHub Release，上传 `dist/ava-workbuddy-expert-<版本>.zip` 与
+   `dist/SHA256SUMS`。不覆盖已发布附件，修复使用新版本。
+4. 用户要求线上发布时，再上传 WorkBuddy 专家 ZIP 或更新分享链接，验证接收方能发现完整 Skill 并调用 CLI。

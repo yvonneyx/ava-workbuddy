@@ -1,7 +1,7 @@
 {
   "name": "ava-workbuddy",
-  "version": "1.0.1",
-  "description": "Local AVA data analysis for WorkBuddy: MCP and expert packages",
+  "version": "1.0.2",
+  "description": "WorkBuddy data analyst expert using the upstream AVA Skill",
   "type": "module",
   "license": "MIT",
   "author": {
@@ -16,55 +16,16 @@
   "engines": {
     "node": ">=22.13.0"
   },
-  "bin": {
-    "ava-workbuddy": "lib/cli.js"
-  },
-  "files": [
-    "lib",
-    "src",
-    "public/artifact.html",
-    "public/icon.svg",
-    "LICENSE",
-    "NOTICE",
-    "README.md",
-    "npm-shrinkwrap.json"
-  ],
   "scripts": {
-    "clean": "node -e \"require('node:fs').rmSync('lib', { recursive: true, force: true })\"",
-    "build": "npm run clean && tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "prepack": "npm run build",
-    "pretest": "npm run build",
-    "check": "node lib/cli.js check",
-    "test": "node --test tests/unit.test.mjs",
-    "test:integration": "node --test tests/integration.test.mjs",
+    "test": "node --test tests/package.test.mjs",
     "test:package": "node scripts/test-package.mjs",
     "validate": "node scripts/validate.mjs",
     "package": "node scripts/package.mjs",
-    "prepackage": "npm run build",
     "pretest:package": "npm run package"
   },
-  "dependencies": {
-    "@antv/ava": "4.0.0",
-    "@modelcontextprotocol/server": "2.4.0",
-    "zod": "4.6.7"
-  },
   "devDependencies": {
-    "@modelcontextprotocol/client": "2.4.0",
-    "@types/node": "22.20.5",
-    "typescript": "7.0.2",
+    "@antv/ava": "4.0.0",
     "yaml": "2.9.1"
   },
-  "main": "./lib/index.js",
-  "types": "./lib/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./lib/index.d.ts",
-      "import": "./lib/index.js"
-    },
-    "./mcp": {
-      "types": "./lib/server.d.ts",
-      "import": "./lib/server.js"
-    }
-  }
+  "private": true
 }

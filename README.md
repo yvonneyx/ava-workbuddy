@@ -1,146 +1,82 @@
 # AVA for WorkBuddy
 
-<img src="public/icon.svg" width="88" alt="AntV logo">
-
 在 WorkBuddy 中分析文件、数据库和飞书多维表格，核对指标变化，交付结论、结果表、交互图表和可追溯的 HTML 报告。
 
-WorkBuddy 理解问题并编写 SQL，AVA 执行计算和制图。结构化数据分析无需额外模型 API Key；原生 `text`
-数据源的文本提取需要配置模型。本仓库提供 MCP 连接器和「AVA 数据分析与报告」专家包。
+「AVA 数据分析与报告」专家直接预加载上游
+[AVA Skill](https://github.com/antvis/AVA/tree/codex/ava-skill-reports/skills/ava)，使用 AVA
+CLI 执行计算和制图。结构化数据分析无需额外模型 API Key；原生 `text` 数据源需要配置模型。
 
-支持 macOS / Linux、Node.js 22.13+、WorkBuddy 5.0.0+。
+从 1.0.2 起只分发专家 ZIP，已移除 MCP 服务、连接器和运行 TGZ。功能对照与边界变化见[迁移说明](docs/ava-skill-migration.md)。
 
-## 开始使用
+## 安装与使用
 
-### 一键复制专家
+支持 macOS / Linux、Node.js 22.13+、WorkBuddy 5.0.0+，运行环境需支持后台进程与 Unix socket。
 
-通过[分享链接][expert-share]复制「AVA 数据分析师」，进入专家对话后按提示连接 AVA，上传 CSV /
-Excel 并描述分析目标。
+1. 在 WorkBuddy 的命令环境中安装或复用 AVA CLI 4.x，并检查可用性：
 
-专家的 MCP 依赖使用固定版本的 GitHub Release 运行包，通过 `npx`
-下载并在用户本机启动，无需使用创建者电脑上的路径。首次连接需要安装受支持的 Node.js，并能访问 GitHub 和 npm。
+   ```sh
+   node --version
+   npm install -g @antv/ava@4
+   ava source --help
+   ```
 
-上手案例见[使用教程](docs/ava-workbuddy-guide.md)。数据库和飞书仍需接收方自行配置网络、权限与凭据。
+2. 导入 `ava-workbuddy-expert-1.0.2.zip`，新建「AVA 数据分析与报告」专家对话。
+3. 上传 CSV / Excel，或提供已授权的数据源，描述分析目标。使用新版专家时停用旧 AVA MCP。
 
-### 安装包
+专家 ZIP 已附带完整 Skill、报告脚本和模板；CLI 需单独安装，Skill 不会自动安装它。首次安装需访问 npm；数据库和飞书需对应网络、权限与凭据。其他文件类型和数据库配置见随包 Skill 的
+`references/sources.md`，实际支持范围取决于 CLI 版本。
 
-运行 `npm run package` 后，`dist/` 中生成：
+可直接提问：
 
-| 使用方式   | 本地文件                            |
-| ---------- | ----------------------------------- |
-| AVA 专家   | `ava-workbuddy-expert-1.0.1.zip`    |
-| 连接器     | `ava-workbuddy-connector-1.0.1.zip` |
-| MCP 运行包 | `ava-workbuddy-1.0.1.tgz`           |
+> 分析我提供的数据，核对指标变化，生成包含结论、图表和查询依据的报告。然后比较各产品贡献，更新同一份分析。
 
-ZIP 的 MCP 配置使用同版本 GitHub Release 中的 TGZ；正式投递前需完成
-[手动发布](CONTRIBUTING.md#手动发布)。同一对话只启用一个 AVA MCP 连接。示例问题：
+专家使用 Skill 的 `scripts/report.mjs`
+执行并记录查询，再从保存的证据生成 HTML 和 JSON。追问报告按章节 ID 合并，保留已有问题与证据；样式调整可使用任务内模板，无需重跑查询。简单问题直接回答即可。
 
-```text
-分析我上传的 CSV / Excel，核对指标变化，给出结论、结果表和图表链接。
-```
-
-上传 CSV / XLSX 并描述问题；也可下载 [模拟数据](tests/fixtures/sales.csv)
-后上传体验。包校验和与发布流程见[手动发布](CONTRIBUTING.md#手动发布)。
-
-### 本地开发
-
-提供 **8 个 MCP 工具**，参数和分析规则由工具 schema 与描述提供。本地调试：
-
-```sh
-npm ci
-npm run build
-node lib/cli.js check
-```
-
-本地 MCP 配置：将 `connector/mcp.json` 中的 `command` 改为受支持 Node.js 的绝对路径，`args`
-改为本仓库 `lib/cli.js` 的绝对路径和 `serve`。远程 Release 配置不会自动使用本地代码。
-
-## 核心流程
-
-**加载数据源 → 查看结构 → 执行只读查询 → 核对结果 → 生成图表或报告 → 释放会话**
-
-MCP 工具描述和输入 schema 提供分析规则、参数与图表配置。报告包含结论、结果表、SQL 和可选图表，数据来自实际查询。
-
-本地文件以私有副本分析，修改原文件后需重新加载；SQLite 快照包含已提交的 WAL 数据。会话闲置 30 分钟或连接重启后需重新加载；超时、断连或不完整响应可能仍在计算，不要自动重试或释放。数据库、飞书与文本源错误返回受控摘要，避免底层错误回显凭据；按提示检查配置、权限、网络和查询。
-
-## 数据源
-
-`ava_source` 的 `path` 与 `config` 二选一；`type` 可覆盖文件格式。具体参数见 MCP 工具 schema。
-
-| 数据源                            | 入口                                             |
-| --------------------------------- | ------------------------------------------------ |
-| CSV、JSON、Parquet、Excel、SQLite | 本地绝对路径；无扩展名时指定 `type`              |
-| 内联 CSV、JSON、文本              | `config.type` 为 `csv`、`json`、`text`           |
-| MySQL、PostgreSQL、MongoDB        | 直连数据库的原生配置                             |
-| ClickHouse、Supabase              | 原生连接配置，AVA 自动选择对应引擎               |
-| 飞书 / Lark 多维表格              | `/base/`、`/wiki/` URL，或 `feishu-bitable` 配置 |
-
-也可用 `path: "@/absolute/path/source.json"` 读取本机配置，避免在对话中传递密码；普通 `.json`
-路径按数据读取。配置通过 stdin 传给 AVA，报告来源只保存数据源类型或本地文件名。使用有权访问的只读账号，配置文件自行限制权限并妥善保管。
-
-通用 HTTP(S) 文件和内置 SSH 隧道暂不支持，入口在执行前拒绝。对应上游问题：
-[SSH 主机身份校验](https://github.com/antvis/AVA/issues/1082)、
-[远程文件鉴权头转发](https://github.com/antvis/AVA/issues/1083)。请使用已授权的本地文件或直连数据库。
-
-飞书凭据需预先通过 `AVA_FEISHU_APP_ID` / `AVA_FEISHU_APP_SECRET`、`~/.ava/feishu.json`
-或配置提供，MCP 不进行交互式绑定。Wiki 还需 Wiki 读取权限和空间成员权限；加载的是整张表，`view`
-筛选不生效。
+上手案例见[使用教程](docs/ava-workbuddy-guide.md)。现有[分享链接][expert-share]仍是旧版 MCP 专家，尚未重新生成。
 
 ## 数据与外部服务
 
-- 数据源结构和查询结果会返回 WorkBuddy，适用其模型服务的数据处理规则。数据库和飞书按用户授权访问，不在本集成的运营后端存储。
-- `text` 会把原始文本发送到用户配置的模型服务，使用前需授权该接收方并配置
-  `OPENAI_API_KEY`。第三方账号、订阅和模型费用按相应服务规则处理。
-- 输入副本与临时文件在正常释放会话后删除；超时或清理失败时保留，关闭结果的 `retainedDirectories`
-  提供保留路径，确认任务结束后可手动删除。最近 32 次查询证据在 MCP 连接关闭后清除，需保留时用
-  `ava_artifact` 导出。
-- 图表和报告以 `600`
-  权限保存，内嵌查询数据；用户可自行删除，向他人分享前需确认数据授权。交互图表从 unpkg.com 加载 GPT-Vis 脚本，脚本可访问图表数据；无图表的报告可离线查看正文、表格和 SQL。
-- 外部授权在数据库或飞书服务中撤回。只使用必要的只读权限，不在对话中提交密码或密钥。
+- 数据结构与查询结果返回 WorkBuddy，适用其模型服务的数据处理规则。数据库与飞书使用用户授权的只读凭据，不在本集成的运营后端存储。
+- `text`
+  会把文本发送到用户配置的模型服务，使用前需授权该接收方并配置模型。不要在对话或交付文件中提交密码、连接串或密钥。
+- 会话由 CLI 管理，闲置 30 分钟或主动释放后失效。保存任务 ID，主动释放不再使用的会话；超时或不确定结果不能自动重试或释放。
+- 报告证据保存在任务目录，会话结束后仍可使用。HTML、配套 JSON 和查询证据以 `600`
+  权限保存且不覆盖已有文件；独立 `ava viz` 使用 CLI 自身的输出权限。
+- 报告内嵌查询数据。交互图表从 unpkg.com 加载 GPT-Vis 脚本，脚本可访问图表数据；分享前需确认授权。正文、表格和 SQL 可离线查看，图表渲染需要网络。生成文件不等于通过浏览器视觉验收。
+- 已移除原 MCP 的私有输入副本、SQLite
+  WAL 快照、连接级归属与清理、统一错误过滤和入口禁用层；具体差异见[迁移说明](docs/ava-skill-migration.md)。
 
-## 开发与验证
+## 开发与打包
 
-核心是严格模式 TypeScript，编译为 ESM 和类型声明；`@antv/ava@4.0.0` 作为原样依赖，依赖版本由
-`npm-shrinkwrap.json` 锁定。
+需要 Node.js 22.13+、npm、`zip`、`unzip`、`tar`，打包需访问 GitHub codeload。
 
-| 命令                       | 用途                                                             |
-| -------------------------- | ---------------------------------------------------------------- |
-| `npm run build`            | 重新生成 `lib/`                                                  |
-| `npm run typecheck`        | 类型检查                                                         |
-| `npm test`                 | 构建并运行单元测试和配置校验                                     |
-| `npm run test:integration` | 真实 MCP、文件/内联数据、禁用入口、只读查询、图表与报告验证      |
-| `npm run test:package`     | 构建、打包，在新目录安装并验证公开 API 和首次分析                |
-| `npm run package`          | 重建 `dist/`，生成 TGZ、两个 ZIP 和 `SHA256SUMS`；需要 zip/unzip |
-
-集成测试和 CLI 使用编译结果，修改源码后先构建。CI 覆盖 macOS / Linux、Node.js 22 / 24。
-
-```text
-src/          TypeScript 运行时、MCP、CLI 和报告
-public/       HTML 报告模板、图标和头像的唯一维护源
-tests/        单元与集成测试、demo helper 和 fixtures
-connector/    连接器元信息和 MCP 配置
-expert/       专家身份、表达偏好和展示信息
-scripts/      配置校验、打包和安装验证
-lib/、dist/   生成文件，不提交
+```sh
+npm ci --no-audit --no-fund
+npm test
+npm run test:package
 ```
 
-开发与发布见[贡献指南](CONTRIBUTING.md)，版本变化见 [CHANGELOG](CHANGELOG.md)。
+| 命令                   | 用途                                                       |
+| ---------------------- | ---------------------------------------------------------- |
+| `npm run validate`     | 校验专家、上游引用、版本和资源                             |
+| `npm test`             | 验证配置及上游下载完整性检查                               |
+| `npm run package`      | 生成专家 ZIP 与 `SHA256SUMS`，清空旧分发产物               |
+| `npm run test:package` | 打包、解包，验证真实 CLI、证据、图表和会话释放后的追问报告 |
 
-## 常见问题
+`expert/ava-skill.json` 固定上游提交与归档 SHA-256。打包时原样提取完整
+`skills/ava`，不维护另一个 Skill 或报告实现。`@antv/ava@4.0.0` 仅是开发验证依赖，不随专家分发。
 
-| 情况                | 处理                                                          |
-| ------------------- | ------------------------------------------------------------- |
-| 找不到 MCP 导入入口 | 检查 WorkBuddy 版本和企业策略                                 |
-| 首次连接失败        | 检查 GitHub / npm 下载和实际错误信息                          |
-| `listen EPERM`      | 检查后台进程、Unix socket 和临时目录权限                      |
-| Excel 加载失败      | 检查 `excel` 扩展下载，或导出为 CSV                           |
-| HTML 图表空白       | 检查预览环境能否访问 unpkg.com                                |
-| 输出已存在          | 使用新文件名或新目录                                          |
-| 报告未使用固定模板  | 确认调用 `ava_artifact`；停用旧同名 Skill 或旧 MCP 后新建会话 |
+```text
+expert/       专家身份、表达偏好、展示信息与上游 Skill 引用
+scripts/      配置校验、打包和安装验证
+tests/        CLI 集成示例和 fixtures
+public/       专家图标、头像与宣传素材
+dist/         生成的专家 ZIP 与校验和，不提交
+```
 
-Windows 尚未支持。数据库与飞书连接需要对应网络、权限和凭据，部分数据源需下载 DuckDB 扩展。图表沿用 AVA 的 GPT-Vis
-CDN 地址，渲染器 URL 未锁定版本。
-
-本项目是独立的社区集成，采用 [MIT License](LICENSE)。上游来源和许可证见 [NOTICE](NOTICE)。
+发布与本机验收见[贡献指南](https://github.com/yvonneyx/ava-workbuddy/blob/main/CONTRIBUTING.md)。本项目是独立的社区集成，采用
+[MIT License](LICENSE)；上游来源与许可证见 [NOTICE](NOTICE)。
 
 [expert-share]:
   https://www.workbuddy.ai/work/launch/?sharecode=nm3SFE1xYGtxz8Cm7tWsV-c9oGpYLYAs6QQshRmf6sMqxhFWsHRFy6RIX8lMWx10&expertname=AVA+%E6%95%B0%E6%8D%AE%E5%88%86%E6%9E%90%E5%B8%88&buddy_type=workbuddy-ai

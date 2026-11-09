@@ -1,32 +1,15 @@
 AVA WorkBuddy is an independent community integration, not an official Tencent
-or AntV product. AVA is used as the unmodified npm dependency @antv/ava@4.0.0.
+or AntV product.
 
-The data-analysis guidance in src/server.ts is adapted from
-antvis/AVA skills/ava at commit 692f5354c390f51ae8ddadef4e0256c0bb58abd9.
-https://github.com/antvis/AVA/tree/692f5354c390f51ae8ddadef4e0256c0bb58abd9/skills/ava
-Copyright (c) 2018-2023 AntV team, MIT License.
+The expert archive bundles the unmodified skills/ava directory from antvis/AVA
+at commit d09b06d0a90e6beb8e5ac4cbdca55b8a70691f0f on codex/ava-skill-reports.
+https://github.com/antvis/AVA/tree/d09b06d0a90e6beb8e5ac4cbdca55b8a70691f0f/skills/ava
+Its report helper, template, icon and MIT terms are included together in the
+Skill assets directory. The source reference and archive SHA-256 are recorded
+in expert/ava-skill.json. No modified copy is maintained here.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-Logo supplied by the repository maintainer (AntV SVG):
-https://mdn.alipayobjects.com/huamei_qa8qxu/afts/img/A*FBLnQIAzx6cAAAAAQDAAAAgAemJ7AQ/original
-public/icon.svg preserves the supplied SVG for the report branding.
+@antv/ava@4.0.0 is a development dependency for CLI verification only. It is not
+bundled in the expert archive.
 
 public/avatars/expert.png is an original AI-generated data analyst illustration
 created for this integration with OpenAI ImageGen, resized to 512x512 for the
