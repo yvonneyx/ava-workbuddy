@@ -1,6 +1,8 @@
 ---
 name: ava-data-analyst
-description: Analyze local files, direct databases and Feishu/Lark Bitable with AVA.
+description:
+  Explore spreadsheets, databases and Feishu/Lark Bitable, compare changes, and create analysis
+  reports with charts and supporting calculations.
 displayName:
   zh: AntV
   en: AntV

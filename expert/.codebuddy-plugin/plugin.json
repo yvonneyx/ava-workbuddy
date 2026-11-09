@@ -1,7 +1,7 @@
 {
   "name": "ava-data-analyst",
   "version": "1.0.2",
-  "description": "Analyze local files, direct database connections and Feishu/Lark Bitable. Verify metrics and deliver traceable reports with AVA.",
+  "description": "Upload spreadsheets or connect a database or Feishu/Lark Bitable to explore your data, compare changes, and create analysis reports with charts and supporting calculations.",
   "author": {
     "name": "yvonneyx",
     "email": "zhuyuxin0627@gmail.com"
@@ -19,8 +19,8 @@
     "en": "Data Analyst"
   },
   "displayDescription": {
-    "zh": "分析本地文件、数据库和飞书表格，核对指标与差异，生成含结论、交互图表和查询依据的报告。",
-    "en": "Analyze local files, direct database connections and Feishu/Lark Bitable. Verify metrics and differences, then deliver findings, interactive charts and reports with query evidence."
+    "zh": "上传表格或连接数据库、飞书表格，帮你看懂数据、比较变化，生成带图表和计算依据的分析报告。",
+    "en": "Upload spreadsheets or connect a database or Feishu/Lark Bitable to explore your data, compare changes, and create analysis reports with charts and supporting calculations."
   },
   "avatar": "avatars/expert.png",
   "categoryId": "04-DataAI",
