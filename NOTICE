@@ -2,11 +2,33 @@ AVA WorkBuddy is an independent community integration, not an official Tencent
 or AntV product.
 
 The expert archive bundles the unmodified skills/ava directory from antvis/AVA
-at commit d09b06d0a90e6beb8e5ac4cbdca55b8a70691f0f on codex/ava-skill-reports.
-https://github.com/antvis/AVA/tree/d09b06d0a90e6beb8e5ac4cbdca55b8a70691f0f/skills/ava
-Its report helper, template, icon and MIT terms are included together in the
-Skill assets directory. The source reference and archive SHA-256 are recorded
-in expert/ava-skill.json. No modified copy is maintained here.
+at commit 07fb4b878c61ddf1345336d9f10670d58ba123ff on codex/ava-skill-reports.
+https://github.com/antvis/AVA/tree/07fb4b878c61ddf1345336d9f10670d58ba123ff/skills/ava
+Its report helper, template and icon are included together. The source
+reference and archive SHA-256 are recorded in expert/ava-skill.json.
+No modified copy is maintained here. The upstream MIT terms follow.
+
+MIT License
+
+Copyright (c) 2018-2023 AntV team
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do { so, subject } to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 public/avatars/expert.png is an original AI-generated data analyst illustration
 created for this integration with OpenAI ImageGen, resized to 512x512 for the

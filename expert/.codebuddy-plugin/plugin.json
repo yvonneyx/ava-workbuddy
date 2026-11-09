@@ -1,6 +1,6 @@
 {
   "name": "ava-data-analyst",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Upload spreadsheets or connect a database or Feishu/Lark Bitable to explore your data, compare changes, and create analysis reports with charts and supporting calculations.",
   "author": {
     "name": "yvonneyx",
