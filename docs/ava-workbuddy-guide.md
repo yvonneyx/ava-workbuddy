@@ -5,7 +5,7 @@ AVA 4.0 是 AntV 开源的数据分析与可视化框架。你可以类比
 的自然语言问数体验：由 AI 助手理解问题，再调用 AVA 读取数据、计算指标和生成图表。
 
 **我们把 AVA
-4.0 接入 WorkBuddy，做成「AVA 数据分析师」，帮助你围绕业务问题逐层拆解，并把结论、图表和计算依据一起交付。**
+4.0 接入 WorkBuddy，做成「AntV」专家，帮助你围绕业务问题逐层拆解，并把结论、图表和计算依据一起交付。**
 
 支持接入企业业务数据：本地 **CSV、Excel、JSON、Parquet、SQLite**
 文件，**MySQL、PostgreSQL、MongoDB、ClickHouse、Supabase** 数据库，以及 **飞书 / Lark 多维表格**。

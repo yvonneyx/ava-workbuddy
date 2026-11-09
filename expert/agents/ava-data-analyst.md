@@ -2,8 +2,8 @@
 name: ava-data-analyst
 description: Analyze local files, direct databases and Feishu/Lark Bitable with AVA.
 displayName:
-  zh: AVA 数据分析与报告
-  en: AVA Data Analysis and Reports
+  zh: AntV
+  en: AntV
 profession:
   zh: AVA 数据分析师
   en: Data Analyst

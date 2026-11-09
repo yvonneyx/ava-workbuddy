@@ -2,7 +2,7 @@
 
 在 WorkBuddy 中分析文件、数据库和飞书多维表格，核对指标变化，交付结论、结果表、交互图表和可追溯的 HTML 报告。
 
-「AVA 数据分析与报告」专家直接预加载上游
+「AntV」专家直接预加载上游
 [AVA Skill](https://github.com/antvis/AVA/tree/codex/ava-skill-reports/skills/ava)，使用 AVA
 CLI 执行计算和制图。结构化数据分析无需额外模型 API Key；原生 `text` 数据源需要配置模型。
 
@@ -20,7 +20,7 @@ CLI 执行计算和制图。结构化数据分析无需额外模型 API Key；�
    ava source --help
    ```
 
-2. 导入 `ava-workbuddy-expert-1.0.2.zip`，新建「AVA 数据分析与报告」专家对话。
+2. 导入 `ava-workbuddy-expert-1.0.2.zip`，新建「AntV」专家对话。
 3. 上传 CSV / Excel，或提供已授权的数据源，描述分析目标。使用新版专家时停用旧 AVA MCP。
 
 专家 ZIP 已附带完整 Skill、报告脚本和模板；CLI 需单独安装，Skill 不会自动安装它。首次安装需访问 npm；数据库和飞书需对应网络、权限与凭据。其他文件类型和数据库配置见随包 Skill 的
