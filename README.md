@@ -2,16 +2,15 @@
 
 上传表格或连接数据库、飞书表格，帮你看懂数据、比较变化，生成带图表和计算依据的分析报告。
 
-「AntV」专家直接使用上游
-[AVA Skill](https://github.com/antvis/AVA/tree/codex/ava-skill-reports/skills/ava) 和 AVA
+「AntV」专家直接使用上游 [AVA Skill](https://github.com/antvis/AVA/tree/v4.0.2/skills/ava) 和 AVA
 CLI。分析方法、业务口径、图表、报告及追问更新的说明均以该 Skill 为准。
 
 ## 使用
 
-支持 macOS / Linux、Node.js 22.13+、WorkBuddy 5.0.0+，运行环境需支持后台进程与 Unix socket。
+需要 Node.js 22.13+、AVA CLI 4.0.2 或更高版本，以及 WorkBuddy 5.0.0+。
 
-1. 在 WorkBuddy 的命令环境中安装或复用 AVA CLI 4.x，运行 `ava source --help` 检查。尚未安装时可使用
-   `npm install -g @antv/ava@4`。
+1. 在 WorkBuddy 的命令环境中安装或更新 AVA CLI，执行 `npm install -g @antv/ava`。首次使用时用一份
+   CSV 执行 `ava source`，确认能获得 `datasetId`，验证后释放测试会话。
 2. 导入专家 ZIP，新建「AntV」专家对话。CLI 需单独安装，专家包不会自动安装它。
 3. 上传表格或提供已授权的数据源，直接描述问题。数据库和飞书需要对应网络、权限与凭据。
 

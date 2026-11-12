@@ -1,6 +1,6 @@
 {
   "name": "ava-data-analyst",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Analyze data from files, databases, and Feishu/Lark Bitable to answer questions and create interactive charts and evidence-backed reports.",
   "author": {
     "name": "yvonneyx",
