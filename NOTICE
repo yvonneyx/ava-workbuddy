@@ -2,8 +2,8 @@ AVA WorkBuddy is an independent community integration, not an official Tencent
 or AntV product.
 
 The expert archive bundles the unmodified skills/ava directory from antvis/AVA
-at commit bc5719d8b0fc5d278981d4021d047608c89f033e (AVA v4.0.2).
-https://github.com/antvis/AVA/tree/v4.0.2/skills/ava
+at commit 6cc78312423cdc313c6e371a5257e536049064d0 (AVA v4.0.3).
+https://github.com/antvis/AVA/tree/v4.0.3/skills/ava
 Its report helper, template and icon are included together. The source
 reference and archive SHA-256 are recorded in expert/ava-skill.json.
 No modified copy is maintained here. The upstream MIT terms follow.

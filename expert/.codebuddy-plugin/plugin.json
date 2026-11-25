@@ -1,7 +1,7 @@
 {
   "name": "ava-data-analyst",
-  "version": "1.0.4",
-  "description": "Analyze data from files, databases, and Feishu/Lark Bitable to answer questions and create interactive charts and evidence-backed reports.",
+  "version": "1.0.5",
+  "description": "Explore and analyze data, create interactive visualizations, and produce reports with documented methods and traceable evidence.",
   "author": {
     "name": "yvonneyx",
     "email": "zhuyuxin0627@gmail.com"
@@ -15,18 +15,18 @@
     "en": "AntV"
   },
   "profession": {
-    "zh": "AVA 数据分析师",
-    "en": "Data Analyst"
+    "zh": "数据分析与可视化专家",
+    "en": "Data Analysis and Visualization Expert"
   },
   "displayDescription": {
-    "zh": "上传表格或连接数据库、飞书表格，帮你看懂数据、比较变化，生成带图表和计算依据的分析报告。",
-    "en": "Analyze data from files, databases, and Feishu/Lark Bitable to answer questions and create interactive charts and evidence-backed reports."
+    "zh": "支持数据探索、指标计算与可视化设计，生成交互图表和分析报告，并提供可复核的计算依据与方法说明。",
+    "en": "Explore data, calculate metrics, and design interactive visualizations and reports with methods and results that can be verified."
   },
   "avatar": "avatars/expert.png",
   "categoryId": "04-DataAI",
   "defaultInitPrompt": {
-    "zh": "分析我提供的数据，概括主要特征、值得关注的问题和可继续探索的方向。",
-    "en": "Explore the data I provide, summarize its main characteristics, and identify noteworthy issues and useful follow-up questions."
+    "zh": "探索这份数据，概括其结构、质量和主要分布特征，说明可进一步检验的问题。",
+    "en": "Explore this dataset, summarize its structure, quality, and main distributions, and identify questions for further investigation."
   },
   "plugin": "ava-data-analyst",
   "tags": [
@@ -39,22 +39,22 @@
       "en": "Statistical Analysis"
     },
     {
-      "zh": "可视化报告",
-      "en": "Visual Reports"
+      "zh": "可视化设计",
+      "en": "Visualization Design"
     }
   ],
   "quickPrompts": [
     {
-      "zh": "分析我提供的数据，概括主要特征、值得关注的问题和可继续探索的方向。",
-      "en": "Explore the data I provide, summarize its main characteristics, and identify noteworthy issues and useful follow-up questions."
+      "zh": "探索这份数据，概括其结构、质量和主要分布特征，说明可进一步检验的问题。",
+      "en": "Explore this dataset, summarize its structure, quality, and main distributions, and identify questions for further investigation."
     },
     {
-      "zh": "分析数据库中的业务数据，比较不同时期或类别的差异，并用图表解释关键发现。",
-      "en": "Analyze business data in my database, compare periods or categories, and explain the key findings with charts."
+      "zh": "根据数据结构和表达目标选择图表，说明字段映射、尺度、单位及设计依据。",
+      "en": "Choose a chart based on the data structure and purpose, and explain its field mappings, scales, units, and design rationale."
     },
     {
-      "zh": "分析这张飞书多维表格，回答我的问题，并生成包含结论、图表和查询依据的报告。",
-      "en": "Analyze this Feishu/Lark Bitable, answer my questions, and create a report with findings, charts and query evidence."
+      "zh": "将已有结果整理为报告，说明数据来源、分析方法和局限，附图表与可复核的计算依据。",
+      "en": "Organize the available findings into a report with data sources, methods, charts, limitations, and verifiable evidence."
     }
   ],
   "homepage": "https://github.com/yvonneyx/ava-workbuddy",
